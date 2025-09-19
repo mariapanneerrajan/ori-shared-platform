@@ -523,6 +523,7 @@ class Annotation(QtCore.QObject):
         for clip_id, frames in self.__timeline_selected_keys.items():
             for frame in frames:
                 self.__annotation_api.delete_rw_annotation(clip_id, frame)
+
     def __goto_nearest_feedback_frame(self, forward):
         playlist_id = self.__session_api.get_fg_playlist()
         playlist_id = self.__session_api.get_fg_playlist()
@@ -546,7 +547,9 @@ class Annotation(QtCore.QObject):
             if not frames: continue
             frames = frames if forward else reversed(frames)
             seq_frames = self.__timeline_api.get_seq_frames(new_clip_id, frames)
-            for frame in seq_frames:
+            if seq_frames:
+                first_seq_frames_only = [seqs[0] for _, seqs in seq_frames]
+            for frame in first_seq_frames_only:
                 if frame == -1:
                     continue
                 if new_clip_id != clip_id:
@@ -566,7 +569,11 @@ class Annotation(QtCore.QObject):
         return True
 
     def __get_current_clip_frame(self):
-        [clip_frame] = self.__timeline_api.get_clip_frames([self.__timeline_api.get_current_frame()])
-        if type(clip_frame) is not tuple:
+        clip_frame = self.__timeline_api.get_clip_frames([self.__timeline_api.get_current_frame()])
+        if not clip_frame:
             return -1
-        return clip_frame[1]
+        else:
+            [clip_frame] = clip_frame
+            if type(clip_frame) is not tuple:
+                return -1
+            return clip_frame[1]

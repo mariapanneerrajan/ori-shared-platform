@@ -38,29 +38,6 @@ class TimelineApi(QtCore.QObject):
     # Frame Controls                                                          #
     ###########################################################################
 
-    def set_playing_state(self, playing, forward=True)->bool:
-        """
-        Sets the playing state for the media
-
-        Args:
-            playing (bool): play if True, else stop
-            forward (bool): plays forward if True, else reversed
-
-        Returns:
-            (bool) : True if set False otherwise
-        """
-        return self.__delegate_mngr.call(
-            self.set_playing_state, [playing, forward])
-
-    def get_playing_state(self):
-        """
-        Returns the current playing state
-
-        Returns:
-            Two bools representing is-playing and is-forward states
-        """
-        return self.__delegate_mngr.call(self.get_playing_state)
-
     def goto_frame(self, frame:int)->bool:
         """
         Go to the specified frame.
@@ -91,8 +68,8 @@ class TimelineApi(QtCore.QObject):
 
     def get_frame_range(self)->Tuple[int, int]:
         """
-        Get the current frame of the timeline.
-        If no current clip is present then 0 is returned.
+        Get the start and end frame of the timeline.
+        If no current clip is present then 0 is returned for both start and end.
 
         Note that the frame numbers returned are relative to the timeline
         sequence and not relative to individual clips.
@@ -103,7 +80,7 @@ class TimelineApi(QtCore.QObject):
         return self.__delegate_mngr.call(self.get_frame_range)
 
     def get_seq_frames(
-        self, clip_id: str, frames: Optional[List[int]]=None)->List[int]:
+        self, clip_id: str, frames: Optional[List[int]]=None)->List[Tuple[int, List[int]]]:
         """
         Get the frames relative to the current timeline sequence that
         corresponds to the given clip frames. If frames are not given, then
@@ -115,39 +92,49 @@ class TimelineApi(QtCore.QObject):
                 into timeline sequence frames.
 
         Kwargs:
-            frames(List[int]): Frames relative to the given clip.
+            frames(List[int]): Clip frames relative to the given clip.
 
         Returns:
-            List[int]:
-                Frames relative to the timeline sequence.
-        """
-        return self.__delegate_mngr.call(
-            self.get_seq_frames, [clip_id, frames])
+            List[Tuple[int, List[int]]]:
+                List of tuples in which first element in the tuple is the clip frame, and
+                the second element is a list of sequence frames associated with the clip frame
+        
+        Examples of how the returned list will look like:
 
-    def get_clip_frames(self, frames: Optional[List[int]]=None)->List[Tuple[str, int]]:
+        .. code-block:: python
+
+            [(1001, [1]), (1002, [2]), (1003, [3]), (1004, [4]), (1005, [5]), (1006, [6]), (1007, [7])]
+
+            [(1001, [8]), (1002, [9,10,11,12]), (1004, [13,14]), (1005, [15])]
+        """
+        return self.__delegate_mngr.call(self.get_seq_frames, [clip_id, frames])
+
+    def get_clip_frames(self, frames: Optional[List[int]]=None)->List[Tuple[str, int, int]]:
         """
         Get the frames relative to the clips in the timeline corresponding
         to the given timeline sequence frames. If frames are not given, then
-        all the ids of the clips with their respective clip frames will be returned.
+        all the ids of the clips with their respective clip frames and local frames will be returned.
 
         Kwargs:
             frames(List[int]): List of timeline sequence frames
 
         Returns:
-            List[str, int]:
-                Clip-ids and Frames relative to the clips in the timeline.
+            List[Tuple(str, int, int)]:
+            List of tuples with clip_id, clip_frame, and local_frame associated with the
+            given sequence frames.
 
         Example of how the returned list will look like,
 
         .. code-block:: python
 
             [
-                ("clip_id_1", 1001), ("clip_id_1", 1002),
-                ("clip_id_2", 1005), ("clip_id_2", 1006), ("clip_id_2", 1007),
-                ("clip_id_3", 1001), ("clip_id_3", 1002)
+                ("clip_id_1", 1001, 1), ("clip_id_1", 1002, 2), ("clip_id_1", 1002, 3),
+                ("clip_id_2", 1005, 1), ("clip_id_2", 1007, 2), ("clip_id_2", 1008, 3),
+                ("clip_id_3", 1002, 1), ("clip_id_3", 1003, 2)
             ]
         """
         return self.__delegate_mngr.call(self.get_clip_frames, [frames])
+
 
     ###########################################################################
     # Audio Controls                                                          #
@@ -220,6 +207,29 @@ class TimelineApi(QtCore.QObject):
     ###########################################################################
     # Playback Controls                                                       #
     ###########################################################################
+
+    def set_playing_state(self, playing, forward=True)->bool:
+        """
+        Sets the playing state for the media
+
+        Args:
+            playing (bool): play if True, else stop
+            forward (bool): plays forward if True, else reversed
+
+        Returns:
+            (bool) : True if set False otherwise
+        """
+        return self.__delegate_mngr.call(
+            self.set_playing_state, [playing, forward])
+
+    def get_playing_state(self):
+        """
+        Returns the current playing state
+
+        Returns:
+            Two bools representing is-playing and is-forward states
+        """
+        return self.__delegate_mngr.call(self.get_playing_state)
 
     def set_playback_mode(self, mode:int):
         """

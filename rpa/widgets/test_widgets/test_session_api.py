@@ -10,6 +10,16 @@ import os
 
 TEST_MEDIA_DIR = os.environ.get("TEST_MEDIA_DIR")
 
+def __test(comp, name, expected, actual):
+    if comp(expected, actual):
+        print(f"\x1b[1;32mPassed: {name}\x1b[0m")
+    else:
+        print(f"\x1b[1;31mFAIL: {name}. Expected: {expected}, but got: {actual}\x1b[0m")
+
+def test_eq(name, expected, actual):
+    eq_func = lambda x,y: x==y
+    __test(eq_func, name, expected, actual)
+
 class TestSessionApi:
 
     def __init__(self, rpa, parent_widget):
@@ -139,6 +149,7 @@ class TestSessionApi:
             partial(self.__test_36),
             partial(self.__test_37),
             partial(self.__test_38),
+            partial(self.__test_39),
             partial(self.__clear_session),
             partial(self.__create_clips),
             partial(self.__custom_attrs_1),
@@ -663,6 +674,24 @@ class TestSessionApi:
         ]
         self.__session_api.set_attr_values(attr_values)
 
+    def __test_39(self):
+        self.__label.setText("Frame edits - hold")
+        playlist = self.__session_api.get_playlists()[0]
+        clip = self.__session_api.get_current_clip()
+        has_frame_edits = self.__session_api.has_frame_edits(clip)
+        test_eq("has frame edits False", False, has_frame_edits)
+        self.__session_api.edit_frames(clip, 1, 1, 5)
+        has_frame_edits = self.__session_api.has_frame_edits(clip)
+        test_eq("has frame edits True", True, has_frame_edits)
+        self.__session_api.edit_frames(clip, -1, 1, 5)
+        has_frame_edits = self.__session_api.has_frame_edits(clip)
+        test_eq("has frame edits False", False, has_frame_edits)
+        self.__session_api.edit_frames(clip, 1, 1, 10)
+        has_frame_edits = self.__session_api.has_frame_edits(clip)
+        test_eq("has frame edits True", True, has_frame_edits)
+        self.__session_api.reset_frames(clip)
+        has_frame_edits = self.__session_api.has_frame_edits(clip)
+        test_eq("has frame edits False", False, has_frame_edits)
 
     def __create_clips(self):
         self.__label.setText("Create Clips")

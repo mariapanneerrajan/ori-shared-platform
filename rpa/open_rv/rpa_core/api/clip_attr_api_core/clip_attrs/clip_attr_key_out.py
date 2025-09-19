@@ -35,19 +35,32 @@ class ClipAttrKeyOut:
         return ["cut_length", "length_diff"]
 
     def set_value(self, source_group:str, value:int)->bool:
-        cut_in = commands.getIntProperty(f"{source_group}_source.cut.in")[0]
-        smi = commands.sourceMediaInfo(f'{source_group}_source')
-        key_in = smi.get("startFrame") if cut_in == (np.iinfo(np.int32).max * -1) else cut_in
+        if not isinstance(value, int):
+            value = self.default_value
 
-        value = max(value, key_in)
-        commands.setIntProperty(f"{source_group}_source.cut.out", [value])
+        if not commands.propertyExists(f"{source_group}_source.custom.keyout"):
+            commands.newProperty(f"{source_group}_source.custom.keyout", commands.IntType, 1)
+
+        commands.setIntProperty(f"{source_group}_source.custom.keyout", [value], True)
         return True
 
     def get_value(self, source_group:str)->int:
         cut_out = commands.getIntProperty(f"{source_group}_source.cut.out")[0]
         smi = commands.sourceMediaInfo(f"{source_group}_source")
         key_out = smi.get("endFrame") if cut_out == (np.iinfo(np.int32).max) else cut_out
-        return key_out
+
+        if not commands.propertyExists(f"{source_group}_source.custom.keyout"):
+            commands.newProperty(f"{source_group}_source.custom.keyout", commands.IntType, 1)
+            commands.setIntProperty(f"{source_group}_source.custom.keyout", [key_out], True)
+            return key_out
+        else:
+            initial_value = commands.getIntProperty(f"{source_group}_source.custom.keyout")
+            end_frame = smi.get("endFrame")
+            if initial_value is None:
+                commands.setIntProperty(f"{source_group}_source.custom.keyout", [end_frame], True)
+
+            key_out = commands.getIntProperty(f"{source_group}_source.custom.keyout")[0]
+            return key_out
 
 
 ClipAttrApiCore.get_instance()._add_attr(ClipAttrKeyOut())

@@ -136,6 +136,7 @@ class Annotation:
     frame: int = -1
     date: int = -1
     is_visible: bool = True
+    is_note: bool = False
     _clear: List[Union[Stroke, Text]] = field(default_factory=list)
     _redo: List[Union[Stroke, Text]] = field(default_factory=list)
     __custom_attrs: dict = field(default_factory=dict)
@@ -156,7 +157,8 @@ class Annotation:
             "creator": self.creator,
             "date": self.date,
             "frame": self.frame,
-            "is_visible": self.is_visible
+            "is_visible": self.is_visible,
+            "is_note": self.is_note
         }
 
     def __setstate__(self, state):
@@ -171,6 +173,7 @@ class Annotation:
         self.date = state["date"]
         self.frame = state["frame"]
         self.is_visible = state["is_visible"]
+        self.is_note = state["is_note"]
         return self
 
     def copy(self):
@@ -221,6 +224,9 @@ class Annotations:
 
     def get_ro_frames(self):
         return list(self.ro_annos.keys())
+
+    def get_ro_note_frames(self):
+        return [frame for frame, annos in self.ro_annos.items() if any(anno.is_note for anno in annos)]
 
     def get_rw_frames(self):
         frames = []

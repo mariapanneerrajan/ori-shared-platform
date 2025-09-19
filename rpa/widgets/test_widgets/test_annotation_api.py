@@ -149,13 +149,13 @@ class TestAnnotationApi:
     def __cut(self):
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.cut(cguid, frame)
 
     def __copy(self):
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.copy(cguid, frame)
 
     def __goto_first_clip(self):
@@ -171,7 +171,7 @@ class TestAnnotationApi:
     def __paste(self):
         clip_id = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.paste(clip_id, frame)
 
     def __set_pointers(self):
@@ -195,7 +195,7 @@ class TestAnnotationApi:
 
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         points = [
             Point(x=0.0, y=0.25),
@@ -255,7 +255,7 @@ class TestAnnotationApi:
 
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         points = [
             Point(x=0.0, y=0.25),
@@ -285,7 +285,7 @@ class TestAnnotationApi:
 
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         points = [
             Point(x=0.0, y=0.90),
@@ -309,7 +309,7 @@ class TestAnnotationApi:
         self.__label.setText("Append Texts 1")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         t1 = Text("Creative", Point(0.6, 0.65), Color(0.2, 1.0, 0.4, 1.0))
         t2 = Text("Pragmatic", Point(0.8, 0.40), Color(1.0, 0.70, 0.5, 1.0))
@@ -320,7 +320,7 @@ class TestAnnotationApi:
         self.__label.setText("Draw Transient Points")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         value = 0.0
         while value < 1.0:
             self.__rpa.annotation_api.append_transient_point(
@@ -335,14 +335,14 @@ class TestAnnotationApi:
         self.__label.setText("Delete Transient Points")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.delete_transient_points(cguid, frame, "local")
 
     def __append_strokes_1(self):
         self.__label.setText("Append Strokes 1")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         points = [
             Point(x=0.0, y=0.5),
@@ -362,7 +362,7 @@ class TestAnnotationApi:
         self.__label.setText("Append Strokes 2")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         points = [
             Point(x=0.0, y=0.75),
@@ -382,35 +382,35 @@ class TestAnnotationApi:
         self.__label.setText("Delete RW Annotations")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.delete_rw_annotation(cguid, frame)
 
     def __delete_ro_annotations(self):
         self.__label.setText("Delete RO Annotations")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.delete_ro_annotations([cguid])
 
     def __undo(self):
         self.__label.setText("Undo")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.undo(cguid, frame)
 
     def __redo(self):
         self.__label.setText("Redo")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.redo(cguid, frame)
 
     def __set_text_1(self):
         self.__label.setText("Set Text 1")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         position = Point(0.45, 0.45)
         size = 12
@@ -423,7 +423,7 @@ class TestAnnotationApi:
         self.__label.setText("Set Text 2")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
 
         position = Point(0.25, 0.25)
         size = 12
@@ -436,6 +436,6 @@ class TestAnnotationApi:
         self.__label.setText("Clear Frame")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.annotation_api.clear_frame(
             cguid, frame)

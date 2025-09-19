@@ -181,9 +181,12 @@ class Controller(QtCore.QObject):
         geometry = self.__viewport_api.get_current_clip_geometry()
         if geometry is None:
             return
-        self.__points = [screen_to_itview(geometry, x, y)]
+        point = screen_to_itview(geometry, x, y)
+        self.__points = [point, point]
         if self.__interactive_mode == C.INTERACTIVE_MODE_LASSO:
-            self.__transient_points.append(screen_to_itview(geometry, x, y))
+            self.__transient_points.append(point)
+            cc_id = self.current_tab.id
+            self.__cc_api.append_transient_points(self.current_clip, cc_id, "local", [self.__transient_points[-1]])
 
     def append_to_shape(self, x, y):
         """
@@ -195,8 +198,18 @@ class Controller(QtCore.QObject):
         geometry = self.__viewport_api.get_current_clip_geometry()
         if geometry is None:
             return
+        cc_id = self.current_tab.id
+        point = screen_to_itview(geometry, x, y)
+        self.__points[-1] = point
+        if self.__interactive_mode == C.INTERACTIVE_MODE_RECTANGLE:
+            points = self.__plot_rectangle()
+            self.__cc_api.set_transient_points(self.current_clip, cc_id, "local", points)
+        if self.__interactive_mode == C.INTERACTIVE_MODE_ELLIPSE:
+            points = self.__plot_ellipse()
+            self.__cc_api.set_transient_points(self.current_clip, cc_id, "local", points)
         if self.__interactive_mode == C.INTERACTIVE_MODE_LASSO:
-            self.__transient_points.append(screen_to_itview(geometry, x, y))
+            self.__transient_points.append(point)
+            self.__cc_api.append_transient_points(self.current_clip, cc_id, "local", [self.__transient_points[-1]])
 
     def finish_shape(self, x, y):
         """
@@ -211,15 +224,19 @@ class Controller(QtCore.QObject):
         cc_id = self.current_tab.id
         if not self.__cc_api.has_region(self.current_clip, cc_id):
             self.__create_region(cc_id)
-        self.__points.append(screen_to_itview(geometry, x, y))
+        point = screen_to_itview(geometry, x, y)
+        self.__points[-1] = point
         if self.__interactive_mode == C.INTERACTIVE_MODE_RECTANGLE:
-            self.__plot_rectangle()
+            points = self.__plot_rectangle()
+            self.__cc_api.append_shape_to_region(self.current_clip, cc_id, points)
         if self.__interactive_mode == C.INTERACTIVE_MODE_ELLIPSE:
-            self.__plot_ellipse()
+            points = self.__plot_ellipse()
+            self.__cc_api.append_shape_to_region(self.current_clip, cc_id, points)
         if self.__interactive_mode == C.INTERACTIVE_MODE_LASSO:
-            self.__transient_points.append(screen_to_itview(geometry, x, y))
+            self.__transient_points.append(point)
             self.__cc_api.append_shape_to_region(self.current_clip, cc_id, self.__transient_points)
             self.__transient_points = []
+        self.__cc_api.delete_transient_points(self.current_clip, cc_id, "local")
 
     def __plot_rectangle(self):
         """
@@ -230,8 +247,8 @@ class Controller(QtCore.QObject):
         points.append((self.__points[1][0], self.__points[0][1]))
         points.append((self.__points[1][0], self.__points[1][1]))
         points.append((self.__points[0][0], self.__points[1][1]))
-        cc_id = self.current_tab.id
-        self.__cc_api.append_shape_to_region(self.current_clip, cc_id, points)
+        points.append((self.__points[0][0], self.__points[0][1]))
+        return points
 
     def __plot_ellipse(self):
         """
@@ -240,13 +257,12 @@ class Controller(QtCore.QObject):
         center = ((self.__points[0][0] + self.__points[1][0]) / 2, (self.__points[0][1] + self.__points[1][1]) / 2)
         a = abs(self.__points[1][0] - self.__points[0][0]) / 2
         b = abs(self.__points[1][1] - self.__points[0][1]) / 2
-        number_of_points = int(np.clip(max(a,b), 20, 50))
+        number_of_points = 256
         t = np.linspace(0, 2 * np.pi, number_of_points)
         x = center[0] + a * np.cos(t)
         y = center[1] + b * np.sin(t)
         points=[(a, b) for a, b in zip(x, y)]
-        cc_id = self.current_tab.id
-        self.__cc_api.append_shape_to_region(self.current_clip, cc_id, points)
+        return points
 
     def __copy_clicked(self):
         self.__clipboard_cc = self.current_tab.id
@@ -579,7 +595,11 @@ class Controller(QtCore.QObject):
                 ui_tabs.insert(i, ui_tabs.pop(tab_index))
 
     def __get_current_clip_frame(self):
-        [clip_frame] = self.__timeline_api.get_clip_frames([self.__timeline_api.get_current_frame()])
-        if type(clip_frame) is not tuple:
+        clip_frame = self.__timeline_api.get_clip_frames([self.__timeline_api.get_current_frame()])
+        if not clip_frame:
             return -1
-        return clip_frame[1]
+        else:
+            [clip_frame] = clip_frame
+            if type(clip_frame) is not tuple:
+                return -1
+            return clip_frame[1]

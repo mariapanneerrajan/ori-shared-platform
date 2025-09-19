@@ -201,13 +201,13 @@ class TestTimelineApi:
         self.__label.setText("goto_frame_1")
         seq_frame = self.__rpa.timeline_api.get_current_frame()
         print("1 seq_frame", seq_frame)
-        clip, clip_frame = self.__rpa.timeline_api.get_clip_frames([seq_frame])[0]
+        clip, clip_frame, local_frame = self.__rpa.timeline_api.get_clip_frames([seq_frame])[0]
         print("clip frame before", clip_frame)
         print("seq frame before", seq_frame)
         self.__rpa.timeline_api.goto_frame(seq_frame + 10)
         seq_frame = self.__rpa.timeline_api.get_current_frame()
         print("seq_frame", seq_frame)
-        clip, clip_frame = self.__rpa.timeline_api.get_clip_frames([seq_frame])[0]
+        clip, clip_frame, local_frame = self.__rpa.timeline_api.get_clip_frames([seq_frame])[0]
         print("clip frame after", clip_frame)
         print("seq frame after", seq_frame)
 

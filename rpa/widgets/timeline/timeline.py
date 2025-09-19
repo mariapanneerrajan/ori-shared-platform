@@ -61,6 +61,7 @@ class TimelineController(QtWidgets.QToolBar):
         # playlist/timeline session api signals
         self.__session_api.SIG_FG_PLAYLIST_CHANGED.connect(self.__playlist_changed)
         self.__session_api.SIG_CURRENT_CLIP_CHANGED.connect(self.__clip_changed)
+        self.__session_api.SIG_ATTR_VALUES_CHANGED.connect(self.__attr_values_changed)
         self.__timeline_api.SIG_FRAME_CHANGED.connect(self.__frame_changed)
         self.__timeline_api.SIG_MODIFIED.connect(self.__update)
 
@@ -98,12 +99,9 @@ class TimelineController(QtWidgets.QToolBar):
         self.actions.SIG_PLAY_BACKWARDS_TOGGLED.connect(
             lambda state: self.__timeline_api.set_playing_state(state, False)
         )
-        self.actions.SIG_STEP_FORWARDS_TRIGGERED.connect(
-            lambda: self.__timeline_api.goto_frame(self.__slider.get_current_time()+1)
-        )
-        self.actions.SIG_STEP_BACKWARDS_TRIGGERED.connect(
-            lambda: self.__timeline_api.goto_frame(self.__slider.get_current_time()-1)
-        )
+        self.actions.SIG_STEP_FORWARDS_TRIGGERED.connect(self.__step_triggered)
+        self.actions.SIG_STEP_BACKWARDS_TRIGGERED.connect(self.__step_triggered)
+
         self.actions.SIG_MUTE_TOGGLED.connect(self.__timeline_api.set_mute)
         self.actions.SIG_VOLUME_CHANGED.connect(self.__timeline_api.set_volume)
         self.actions.SIG_AUDIO_SCRUBBING_TOGGLED.connect(
@@ -120,6 +118,27 @@ class TimelineController(QtWidgets.QToolBar):
             self.__timeline_api.set_mute, self.__post_set_mute)
         self.actions.set_play_status(*self.__timeline_api.get_playing_state())
         self.actions.volume_slider.setValue(self.__timeline_api.get_volume())
+
+    def __step_triggered(self, step:int):
+        # forward step = 1 and backward step = -1
+        if not step in (1, -1):
+            return
+
+        current_frame = self.__timeline_api.get_current_frame()
+        new_frame = current_frame + step
+
+        start, end = self.__timeline_api.get_frame_range()
+        if new_frame <= 0:
+            new_frame = end
+        elif new_frame > end:
+            new_frame = start
+        
+        if self.__slider_scope.is_clip_scope():
+            [goto_frame] = self.__convert_to_clip_frames([new_frame])
+        else:
+            goto_frame = new_frame
+
+        self.__timeline_api.goto_frame(new_frame)
 
     def __play_toggled(self, state):
         _, forward = self.__timeline_api.get_playing_state()
@@ -166,21 +185,30 @@ class TimelineController(QtWidgets.QToolBar):
 
     def __update_slider_current_frame(self):
         clip_mode = self.__slider_scope.is_clip_scope()
-        current_frame = self.__timeline_api.get_current_frame()
+        current_seq_frame = self.__timeline_api.get_current_frame()
+
         if clip_mode:
-            [current_frame] = self.__convert_to_clip_frames([current_frame])
+            [current_frame] = self.__convert_to_clip_frames([current_seq_frame])
+        else:
+            current_frame = current_seq_frame
+
         self.__slider.set_current_time(current_frame)
 
     def __update_slider_range(self):
         if self.__playlist_id is None:
             return
+
         clip_mode = self.__slider_scope.is_clip_scope()
         left, right = self.__timeline_api.get_frame_range()
+
         if clip_mode:
             left = self.__session_api.get_attr_value(self.__clip_id, "key_in")
             right = self.__session_api.get_attr_value(self.__clip_id, "key_out")
+            if None in (left, right):
+                left, right = 0, 0
         if left == right:
             right += 2
+        
         self.__slider.set_range(left, right)
 
     def __update_slider_keys(self):
@@ -189,9 +217,19 @@ class TimelineController(QtWidgets.QToolBar):
         self.__transform_keys_modified()
 
     def __slider_value_changed(self, value):
-        if self.__slider_scope.is_clip_scope():
-            [value] = self.__timeline_api.get_seq_frames(self.__clip_id, [value])
-        self.__timeline_api.goto_frame(value)
+        clip_mode = self.__slider_scope.is_clip_scope()
+        if clip_mode:
+            value = self.__timeline_api.get_seq_frames(self.__clip_id, [value])
+            if value:
+                [value] = value
+                clip_frame, seq_frames = value
+                frame = seq_frames[0] # first seq frame
+            else:
+                frame = 1 # start frame for slider mapping purposes
+        else:
+            frame = value
+
+        self.__timeline_api.goto_frame(frame)
 
     def __slider_scope_selected(self):
         if self.__playlist_id is None:
@@ -226,67 +264,84 @@ class TimelineController(QtWidgets.QToolBar):
     def __range_start_changed(self, key_in):
         if not self.__playlist_id or not self.__clip_id:
             return
-        if self.__range_scope.is_sequence_scope() or self.__range_scope.is_display_mode_timecode() \
-                or self.__range_scope.is_display_mode_feet():
+        if self.__range_scope.is_sequence_scope() or \
+            self.__range_scope.is_display_mode_timecode() or \
+                self.__range_scope.is_display_mode_feet():
             return
 
         attr_values = [(self.__playlist_id, self.__clip_id, "key_in", key_in)]
-        print(f'216 attr_values: {attr_values}')
         self.__session_api.set_attr_values(attr_values)
 
     def __range_cur_changed(self, frame):
+        goto_frame = 0
         if not self.__playlist_id or not self.__clip_id:
             return
         if self.__range_scope.is_display_mode_timecode() or self.__range_scope.is_display_mode_feet():
             return
+
         if self.__range_scope.is_clip_scope():
-            [frame] = self.__timeline_api.get_seq_frames(self.__clip_id, [frame])
-            if not frame:
-                return
-        self.__timeline_api.goto_frame(frame)
+            frame = self.__timeline_api.get_seq_frames(self.__clip_id, [frame])
+            if frame:
+                [frame] = frame
+                clip_frame, seq_frames = frame
+                goto_frame = seq_frames[0]
+        else:
+            goto_frame = frame
+        
+        if goto_frame:
+            start, end = self.__timeline_api.get_frame_range()
+            if start <= goto_frame <= end:
+                self.__timeline_api.goto_frame(goto_frame)
 
     def __range_end_changed(self, key_out):
         if not self.__playlist_id or not self.__clip_id:
             return
-        if self.__range_scope.is_sequence_scope() or self.__range_scope.is_display_mode_timecode() \
-                or self.__range_scope.is_display_mode_feet():
+        if self.__range_scope.is_sequence_scope() or \
+            self.__range_scope.is_display_mode_timecode() or \
+                self.__range_scope.is_display_mode_feet():
             return
 
         attr_values = [(self.__playlist_id, self.__clip_id, "key_out", key_out)]
         self.__session_api.set_attr_values(attr_values)
 
-    def __update_range_current_frame(self, sequence_frame=None, src_frame=None):
+    def __update_range_current_frame(self, sequence_frame=None):
         if self.__playlist_id is None:
             return
-
+        
         clip_mode = self.__range_scope.is_clip_scope()
-        current_frame = src_frame if clip_mode else sequence_frame
-        if not current_frame:
-            current_frame = self.__timeline_api.get_current_frame()
-            if clip_mode and self.__range_scope.is_display_mode_frame():
-                [current_frame] = self.__convert_to_clip_frames([current_frame])
+
+        if sequence_frame is None:
+            sequence_frame = self.__timeline_api.get_current_frame()
+        
+        if clip_mode and self.__range_scope.is_display_mode_frame():
+            [current_frame] = self.__convert_to_clip_frames([sequence_frame])
+        else:
+            current_frame = sequence_frame
+        
         if not self.__range_scope.is_display_mode_frame():
-            [current_frame] = self.__convert_frames_display([current_frame],
-                                                            clip_mode,
-                                                            self.__range_scope.display_mode.value)
+            [current_frame] = self.__convert_frames_display(
+                [sequence_frame], clip_mode, self.__range_scope.display_mode.value)
+        
         self.__timeline_range.set_current_frame(current_frame)
 
     def __update_range_key_in_out(self):
         if self.__playlist_id is None:
             return
+
         clip_mode = self.__range_scope.is_clip_scope()
+
         if clip_mode and self.__range_scope.is_display_mode_frame():
             key_in = self.__session_api.get_attr_value(self.__clip_id, "key_in")
             key_out = self.__session_api.get_attr_value(self.__clip_id, "key_out")
-            if not key_in and not key_out:
-                key_in, key_out = 1, 1
+            if None in (key_in, key_out):
+                key_in, key_out = 0, 0
         else:
             key_in, key_out = self.__timeline_api.get_frame_range()
 
         if not self.__range_scope.is_display_mode_frame():
-            [key_in, key_out] = self.__convert_frames_display([key_in, key_out],
-                                                                           clip_mode,
-                                                                           self.__range_scope.display_mode.value)
+            [key_in, key_out] = self.__convert_frames_display(
+                [key_in, key_out], clip_mode, self.__range_scope.display_mode.value)
+
         self.__timeline_range.set_range_key_in(key_in)
         self.__timeline_range.set_range_key_out(key_out)
 
@@ -294,12 +349,14 @@ class TimelineController(QtWidgets.QToolBar):
         if self.__playlist_id is None:
             return
 
-        key_in, key_out = self.__timeline_api.get_frame_range()
-        total = key_out - key_in + 1
+        range_start, range_end = self.__timeline_api.get_frame_range()
+        total = range_end - range_start + 1
+
         if not self.__range_scope.is_display_mode_frame():
             # Since total is a difference, it's technically in global frame scope
-            [total] = self.__convert_frames_display([total], False,
-                                                    self.__range_scope.display_mode.value)
+            [total] = self.__convert_frames_display(
+                [total], False, self.__range_scope.display_mode.value)
+
         self.__timeline_range.set_range_total(total)
 
     # Common methods for controlling slider and range
@@ -315,10 +372,9 @@ class TimelineController(QtWidgets.QToolBar):
         self.__update_range_total()
 
     def __update_slider(self):
-        self.__update_slider_current_frame()
         self.__update_slider_range()
+        self.__update_slider_current_frame()
         self.__update_slider_keys()
-        self.__transform_keys_modified()
 
     def __playlist_changed(self, playlist_id):
         self.__playlist_id = playlist_id
@@ -332,22 +388,28 @@ class TimelineController(QtWidgets.QToolBar):
             self.__update_range()
 
     def __attr_values_changed(self, attr_values):
+        dynamic_transform_attr_ids = []
+
         for attr_value in attr_values:
             playlist_id, clip_id, attr_id, value = attr_value
             if playlist_id != self.__playlist_id or clip_id != self.__clip_id:
                 return
-
             if attr_id in DYNAMIC_TRANSFORM_ATTRS:
-                self.__transform_keys_modified()
+                dynamic_transform_attr_ids.append(attr_id)
+
+        if dynamic_transform_attr_ids:
+            self.__transform_keys_modified()
 
     def __frame_changed(self, sequence_frame):
-        src_frame = None
-        if self.__slider_scope.is_clip_scope() or self.__range_scope.is_clip_scope():
-            [src_frame] = self.__convert_to_clip_frames([sequence_frame])
-        self.__update_range_current_frame(sequence_frame=sequence_frame, src_frame=src_frame)
+        self.__update_range_current_frame(sequence_frame=sequence_frame)
         if self.__is_scrubbing:
             return
-        self.__slider.set_current_time(src_frame if self.__slider_scope.is_clip_scope() else sequence_frame)
+        
+        if self.__slider_scope.is_clip_scope():
+            [current_frame] = self.__convert_to_clip_frames([sequence_frame])
+        else:
+            current_frame = sequence_frame     
+        self.__slider.set_current_time(current_frame)
 
     def __transform_keys_modified(self):
         clip_mode = self.__slider_scope.is_clip_scope()
@@ -379,7 +441,11 @@ class TimelineController(QtWidgets.QToolBar):
             for clip_id in clip_ids:
                 for attr_id in DYNAMIC_TRANSFORM_ATTRS:
                     attr_keys = self.__session_api.get_attr_keys(clip_id, attr_id)
-                    seq_transform_keys = seq_transform_keys.union(self.__timeline_api.get_seq_frames(clip_id, attr_keys))
+                    seq_frames = self.__timeline_api.get_seq_frames(clip_id, attr_keys)
+                    if seq_frames:
+                        first_seq_frame_only = [seqs[0] for _, seqs in seq_frames]
+                        seq_transform_keys = seq_transform_keys.union(first_seq_frame_only)
+                    seq_transform_keys = seq_transform_keys.union()
             keys = [key for key in sorted(seq_transform_keys) if key != -1]
         return keys
 
@@ -387,26 +453,38 @@ class TimelineController(QtWidgets.QToolBar):
         clip_mode = self.__slider_scope.is_clip_scope()
         if clip_mode:
             annotation_rw_frames = self.__annotation_api.get_rw_frames(
-                self.__clip_id
-            )
+                self.__clip_id)
             annotation_ro_frames = self.__annotation_api.get_ro_frames(
-                self.__clip_id
-            )
+                self.__clip_id)
+            annotation_ro_note_frames = self.__annotation_api.get_ro_note_frames(
+                self.__clip_id)
         else:
             clip_ids = self.__session_api.get_active_clips(
-                self.__playlist_id
-            )
+                self.__playlist_id)
             if len(clip_ids) == 0:
                 clip_ids = self.__session_api.get_clips(self.__playlist_id)
             annotation_rw_frames = []
             annotation_ro_frames = []
+            annotation_ro_note_frames = []
             for clip_id in clip_ids:
                 rw_frames = self.__annotation_api.get_rw_frames(clip_id)
-                annotation_rw_frames += self.__timeline_api.get_seq_frames(clip_id, rw_frames)
+                rw_seq_frames = self.__timeline_api.get_seq_frames(clip_id, rw_frames)
+                if rw_seq_frames:
+                    annotation_rw_frames = [seqs[0] for _, seqs in rw_seq_frames]
+                
                 ro_frames = self.__annotation_api.get_ro_frames(clip_id)
-                annotation_ro_frames += self.__timeline_api.get_seq_frames(clip_id, ro_frames)
+                ro_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_frames)
+                if ro_seq_frames:
+                    annotation_ro_frames = [seqs[0] for _, seqs in ro_seq_frames]
+
+                ro_note_frames = self.__annotation_api.get_ro_note_frames(clip_id)
+                ro_note_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_note_frames)
+                if ro_note_seq_frames:
+                    annotation_ro_note_frames = [seqs[0] for _, seqs in ro_note_seq_frames]
+
         self.__slider.set_annotation_rw_keys(annotation_rw_frames)
         self.__slider.set_annotation_ro_keys(annotation_ro_frames)
+        self.__slider.set_annotation_ro_note_keys(annotation_ro_note_frames)
 
     def __cc_modified(self):
         clip_mode = self.__slider_scope.is_clip_scope()
@@ -423,9 +501,14 @@ class TimelineController(QtWidgets.QToolBar):
             cc_ro_frames = []
             for clip_id in clip_ids:
                 rw_frames = self.__color_api.get_rw_frames(clip_id)
-                cc_rw_frames += self.__timeline_api.get_seq_frames(clip_id, rw_frames)
+                rw_seq_frames = self.__timeline_api.get_seq_frames(clip_id, rw_frames)
+                if rw_seq_frames:
+                    cc_rw_frames = [seqs[0] for _, seqs in rw_seq_frames]
                 ro_frames = self.__color_api.get_ro_frames(clip_id)
-                cc_ro_frames += self.__timeline_api.get_seq_frames(clip_id, ro_frames)
+                ro_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_frames)
+                if ro_seq_frames:
+                    cc_ro_frames = [seqs[0] for _, seqs in ro_seq_frames]
+
         self.__slider.set_cc_rw_keys(cc_rw_frames)
         self.__slider.set_cc_ro_keys(cc_ro_frames)
 
@@ -513,4 +596,5 @@ class TimelineController(QtWidgets.QToolBar):
 
     def __convert_to_clip_frames(self, frames):
         clip_frames = self.__timeline_api.get_clip_frames(frames)
+        clip_frames = [0] if not clip_frames else clip_frames
         return list(map(lambda t: t[1] if t else t, clip_frames))

@@ -138,11 +138,10 @@ class SessionAssistant(QtCore.QObject):
         end = self.__session_api.get_attr_value(clip_id, "media_end_frame")
 
         cur_seq_frame = self.__timeline_api.get_current_frame()
-        clip_frame_data = self.__timeline_api.get_clip_frames([cur_seq_frame])
-        if clip_frame_data:
-            clip_id_at_clip_frame, cur_clip_frame = clip_frame_data[0]
-            if clip_id_at_clip_frame != clip_id: 
-                return
+        [clip_frame] = self.__timeline_api.get_clip_frames([cur_seq_frame])
+        if clip_frame and clip_frame[0] != clip_id:
+            return
+        clip_id, cur_clip_frame, local_frame = clip_frame
 
         if attr_id == "key_in":
             comparison_key = start
@@ -173,8 +172,11 @@ class SessionAssistant(QtCore.QObject):
             goto_frame = 1
         elif attr_id == "key_out":
             seq_frame = self.__timeline_api.get_seq_frames(clip_id, [new_key])
-            goto_frame = seq_frame[0] if seq_frame else 1
+            if seq_frame:
+                (clip_frame, [goto_frame]) = seq_frame[0]
+            else:
+                goto_frame = 1
         else:
             return
-        
+
         self.__timeline_api.goto_frame(goto_frame)

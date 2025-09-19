@@ -6,9 +6,9 @@ import imageio.v3 as iio
 import numpy as np
 from OpenGL import GL
 try:
-    from PySide2 import QtGui, QtCore
+    from PySide2 import QtGui, QtCore, QtWebEngineWidgets
 except ImportError:
-    from PySide6 import QtGui, QtCore
+    from PySide6 import QtGui, QtCore, QtWebEngineWidgets
 from rv import commands as rvc
 from rv import extra_commands as rve
 from rv import runtime
@@ -28,7 +28,6 @@ def render_html_to_image(width, height, html):
     doc.drawContents(painter)
     painter.end()
 
-    image = image.mirrored(False, True)
     return image
 
 def qimage_to_gl_texture(image):
@@ -61,12 +60,65 @@ def _speed_pow2(value, speed=1.0, num=1.0):
     return 2.0 ** ((round(speed * math.log(abs(value)) / math.log(2)) + num) / speed)
 
 
+def hex_to_glColor3f(hex_color):
+    """Convert hex color string to RGB float for glColor3f
+
+    Args:
+        hex_color (str): hex color string in the form of #FFFFFF
+
+    Returns:
+        tuple: (r, g, b) as floats in [0.0, 1.0]
+    """
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16) / 255.0
+    g = int(hex_color[2:4], 16) / 255.0
+    b = int(hex_color[4:6], 16) / 255.0
+    return (r, g, b)
+
 @dataclass(frozen=True)
 class FlipMode:
     NONE: str = "None"
     BOTH: str = "Both"
     HORIZ: str = "Horizontally"
     VERT: str = "Vertically"
+
+
+class WebEngineRenderer:
+
+    def __init__(self, callback):
+        self.__callback = callback
+        self.__empty_image = QtGui.QImage(1, 1, QtGui.QImage.Format_ARGB32)
+        self.__empty_image.fill(QtCore.Qt.transparent)
+        self.__timer = QtCore.QTimer()
+        self.__timer.setSingleShot(True)
+        self.__timer.setInterval(200)
+        self.__timer.timeout.connect(self.__render_finished)
+        self.__timer2 = QtCore.QTimer()
+        self.__timer2.setSingleShot(True)
+        self.__timer2.setInterval(1000)
+        self.__timer2.timeout.connect(self.__render_finished)
+        self.__web_engine = QtWebEngineWidgets.QWebEngineView()
+        self.__web_engine.setProperty("SHOW_IN_ITVIEW_MODE", True)
+        self.__web_engine.setAttribute(QtCore.Qt.WA_DontShowOnScreen, True)
+        self.__web_engine.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.__web_engine.setStyleSheet("background: transparent")
+        self.__web_engine.page().setBackgroundColor(QtCore.Qt.transparent)
+        self.__web_engine.loadFinished.connect(self.__load_finished)
+        self.__web_engine.show()
+
+    def render(self, html, width, height):
+        self.__callback(self.__empty_image)
+        self.__web_engine.resize(width, height)
+        self.__web_engine.setHtml(html)
+
+    def __load_finished(self, ok):
+        if not ok: return
+        self.__timer.start()
+        self.__timer2.start()
+
+    def __render_finished(self):
+        image = self.__web_engine.grab().toImage()
+        self.__callback(image)
 
 
 class ViewportApiCore(QtCore.QObject):
@@ -103,10 +155,12 @@ class ViewportApiCore(QtCore.QObject):
 
         self.__last_geometry = None
 
+        self.__web_engine_renderers = {}
+
     def create_html_overlay(self, html_overlay):
         id = self.__session.viewport.create_html_overlay(html_overlay)
         html_overlay = self.__session.viewport.get_html_overlay(id)
-        self.__set_html_overlay_texture(html_overlay)
+        self.__set_html_overlay_texture(id, html_overlay)
         return id
 
     def set_html_overlay(self, id:str, html_overlay):
@@ -114,18 +168,30 @@ class ViewportApiCore(QtCore.QObject):
             self.__session.viewport.set_html_overlay(id, html_overlay)
         if is_success:
             html_overlay = self.__session.viewport.get_html_overlay(id)
-            self.__set_html_overlay_texture(html_overlay)
+            self.__set_html_overlay_texture(id, html_overlay)
         return is_success
 
-    def __set_html_overlay_texture(self, html_overlay):
-        old_texture_id = html_overlay.get_custom_attr("gl_texture_id")
-        if old_texture_id is not None:
-            GL.glDeleteTextures([old_texture_id])
-        image = render_html_to_image(
-            html_overlay.width, html_overlay.height, html_overlay.html)
-        texture_id = qimage_to_gl_texture(image)
-        html_overlay.set_custom_attr("gl_texture_id", texture_id)
-        rvc.redraw()
+    def __set_html_overlay_texture(self, id, html_overlay):
+        def update_texture(image):
+            old_texture_id = html_overlay.get_custom_attr("gl_texture_id")
+            if old_texture_id is not None:
+                GL.glDeleteTextures([old_texture_id])
+            new_texture_id = qimage_to_gl_texture(image)
+            html_overlay.set_custom_attr("gl_texture_id", new_texture_id)
+            rvc.redraw()
+        if html_overlay.use_web_engine:
+            web_engine_renderer = self.__web_engine_renderers.get(id)
+            if web_engine_renderer is None:
+                web_engine_renderer = WebEngineRenderer(update_texture)
+                self.__web_engine_renderers[id] = web_engine_renderer
+            web_engine_renderer.render(
+                html_overlay.html,
+                html_overlay.width,
+                html_overlay.height)
+        else:
+            image = render_html_to_image(
+                html_overlay.width, html_overlay.height, html_overlay.html)
+            update_texture(image)
 
     def get_html_overlay(self, id:str):
         return self.__session.viewport.get_html_overlay_data(id)
@@ -135,8 +201,30 @@ class ViewportApiCore(QtCore.QObject):
 
     def delete_html_overlays(self, ids):
         is_success = self.__session.viewport.delete_html_overlays(ids)
+        for id in ids:
+            self.__web_engine_renderers.pop(id, None)
         rvc.redraw()
         return is_success
+
+    def create_opengl_overlay(self, recipe):
+        id = self.__session.viewport.create_opengl_overlay(recipe)
+        rvc.redraw()
+        return id
+
+    def set_opengl_overlay(self, id, recipe):
+        is_success = self.__session.viewport.set_opengl_overlay(id, recipe)
+        if is_success:
+            rvc.redraw()
+        return is_success
+
+    def get_opengl_overlay_ids(self):
+        return self.__session.viewport.get_opengl_overlay_ids()
+
+    def delete_opengl_overlays(self, ids):
+        is_success = self.__session.viewport.delete_opengl_overlays(ids)
+        rvc.redraw()
+        return is_success
+
 
     def start_drag(self, pointer):
         self.__down_point = rve.translation()
@@ -436,6 +524,9 @@ class ViewportApiCore(QtCore.QObject):
         smi = rvc.sourceMediaInfo(sources[0])
         return smi["width"], smi["height"]
 
+    def __get_screen_dimensions(self):
+        return rvc.viewSize()
+
     def get_translation(self):
         return prop_util.get_property("#RVDispTransform2D.transform.translate")[0]
 
@@ -528,7 +619,22 @@ class ViewportApiCore(QtCore.QObject):
 
         GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, width, height, 0, GL.GL_RGBA, GL.GL_FLOAT, data)
 
-    def __get_mask_rect(self, width, height, geometry, translate_x, translate_y, scale_x, scale_y, rotation=None):
+    def __get_image_rect(self, width, height, geometry, translate_x, translate_y, scale_x, scale_y, rotation=None):
+        """Return geometry rectangle of the image without image transforms applied
+
+        Args:
+            width (float): image width
+            height (float): image height
+            geometry (list): current image geometry
+            translate_x (float): translation in x axis
+            translate_y (float): translation in y axis
+            scale_x (float): scale in x axis
+            scale_y (float): scale in y axis
+            rotation (float, optional): rotation of an image. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         g = [np.array(p) for p in geometry]
         center = 0.5 * (g[0] + g[2])
         size = np.array([
@@ -571,9 +677,6 @@ class ViewportApiCore(QtCore.QObject):
         clip_id = self.__session_api.get_current_clip()
         if clip_id is None:
             return
-        playlist_id = self.__session_api.get_playlist_of_clip(clip_id)
-        if playlist_id is None:
-            return
 
         sources = rvc.sourcesAtFrame(frame)
         if len(sources) != 1:
@@ -595,7 +698,7 @@ class ViewportApiCore(QtCore.QObject):
         scale_y = self.__session_api.get_attr_value(clip_id, "scale_y")
         scale_y *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_y", src_frame)
 
-        lb, rb, rt, lt = self.__get_mask_rect(
+        lb, rb, rt, lt = self.__get_image_rect(
             img_width, img_height, geometry, -translate_x, -translate_y, 1.0/scale_x, 1.0/scale_y)
         x0, y0 = lb
         x1, y1 = rt
@@ -611,6 +714,7 @@ class ViewportApiCore(QtCore.QObject):
         GL.glEnable(GL.GL_TEXTURE_2D)
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glColor4f(1.0, 1.0, 1.0, 1.0)
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.__texture)
 
         # check for horizontal flip coordinates
@@ -648,9 +752,6 @@ class ViewportApiCore(QtCore.QObject):
         clip_id = self.__session_api.get_current_clip()
         if clip_id is None:
             return
-        playlist_id = self.__session_api.get_playlist_of_clip(clip_id)
-        if playlist_id is None:
-            return
 
         sources = rvc.sourcesAtFrame(frame)
         if len(sources) != 1:
@@ -682,7 +783,7 @@ class ViewportApiCore(QtCore.QObject):
         scale_y *= self.__session_api.get_attr_value_at(
             clip_id, "dynamic_scale_y", src_frame)
 
-        lb, rb, rt, lt = self.__get_mask_rect(
+        lb, rb, rt, lt = self.__get_image_rect(
             img_width, img_height, geometry, -translate_x, -translate_y, 1.0/scale_x, 1.0/scale_y)
         lbx, lby = lb
         rbx, rby = rb
@@ -731,6 +832,149 @@ class ViewportApiCore(QtCore.QObject):
         GL.glEndList()
 
         GL.glCallList(self.__display)
+
+    def __render_opengl_overlays(self, event):
+        frame = rvc.frame()
+        sources = rvc.sourcesAtFrame(frame)
+        if len(sources) != 1:
+            return
+        domain = event.domain()
+        overlays = self.__session.viewport.get_opengl_overlays()
+        for recipe in overlays:
+            if not recipe.get("is_visible", False):
+                continue
+            vertices = recipe.get("vertices", [])
+            vertices = list(map(lambda v: np.array([*self.__convert_to_image_space(v), 1]), vertices))
+            if recipe.get("apply_image_transforms", False):
+                vertices = self.__apply_image_transforms(vertices)
+            GL.glMatrixMode(GL.GL_PROJECTION)
+            GL.glLoadIdentity()
+            GL.glOrtho(0, domain[0], 0, domain[1], -1000000, +1000000)
+            GL.glMatrixMode(GL.GL_MODELVIEW)
+            GL.glLoadIdentity()
+
+            GL.glLineWidth(recipe.get("width", 1.0))
+            GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            GL.glColor4f(*hex_to_glColor3f(recipe.get("color", "#FFFFFF")),
+                         recipe.get("opacity", 1.0))
+            if recipe.get("dashed", False):
+                GL.glLineStipple(4, 0xAAAA)
+                GL.glEnable(GL.GL_LINE_STIPPLE)
+            GL.glBegin(GL.GL_LINE_LOOP)
+            for corner in vertices:
+                GL.glVertex(corner)
+            GL.glEnd()
+            if recipe.get("dashed", False):
+                GL.glDisable(GL.GL_LINE_STIPPLE)
+
+    def __convert_to_image_space(self, vert):
+        frame = rvc.frame() # global frame
+        src_frame = rve.sourceFrame(frame) # source frame
+        clip_id = self.__session_api.get_current_clip()
+        if clip_id is None:
+            return
+        playlist_id = self.__session_api.get_playlist_of_clip(clip_id)
+        if playlist_id is None:
+            return
+
+        sources = rvc.sourcesAtFrame(frame)
+        if len(sources) != 1:
+            return
+        source = sources[0]
+        smi = rvc.sourceMediaInfo(source)
+        geometry = rvc.imageGeometry(source)
+
+        img_width = float(smi["width"])
+        img_height = float(smi["height"])
+
+        translate_x = self.__session_api.get_attr_value(clip_id, "pan_x")
+        translate_x += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_x", src_frame)
+        translate_y = self.__session_api.get_attr_value(clip_id, "pan_y")
+        translate_y += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_y", src_frame)
+        scale_x = self.__session_api.get_attr_value(clip_id, "scale_x")
+        scale_x *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_x", src_frame)
+        scale_y = self.__session_api.get_attr_value(clip_id, "scale_y")
+        scale_y *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_y", src_frame)
+        rotation = self.get_rotation()
+        lb, rb, _, lt = self.__get_image_rect(
+            img_width, img_height, geometry, -translate_x, -translate_y, 1.0/scale_x, 1.0/scale_y, rotation=rotation)
+
+        u, v = rb-lb, lt-lb # vectors that define direction of rectangle
+        return lb + vert[0]*u + vert[1]*v
+
+    def __apply_image_transforms(self, vertices):
+        clip_id = self.__session.viewport.current_clip
+        frame = rvc.frame() # global frame
+        src_frame = rve.sourceFrame(frame) # source frame
+
+        translate_x = self.__session_api.get_attr_value(clip_id, "pan_x")
+        translate_x += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_x", src_frame)
+        translate_y = self.__session_api.get_attr_value(clip_id, "pan_y")
+        translate_y += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_y", src_frame)
+        scale_x = self.__session_api.get_attr_value(clip_id, "scale_x")
+        scale_x *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_x", src_frame)
+        scale_y = self.__session_api.get_attr_value(clip_id, "scale_y")
+        scale_y *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_y", src_frame)
+        rotation = self.__session_api.get_attr_value(clip_id, "rotation")
+        rotation += self.__session_api.get_attr_value_at(clip_id, "dynamic_rotation", src_frame)
+        theta = -math.radians(rotation)
+        pixel_size = self.__get_pixel_size(1.0/scale_x, 1.0/scale_y)
+        centroid = np.array(vertices).mean(axis=0)
+
+        S = np.array([
+            [scale_x, 0, 0],
+            [0, scale_y, 0],
+            [0, 0, 1]
+        ])
+
+        R = np.array([
+            [math.cos(theta), -math.sin(theta), 0],
+            [np.sin(theta), np.cos(theta), 0],
+            [0, 0, 1]
+        ])
+
+        T1 = np.array([
+            [1, 0, -centroid[0]],
+            [0, 1, -centroid[1]],
+            [0, 0, 1]
+        ])
+
+        T2 = np.array([
+            [1, 0, centroid[0]],
+            [0, 1, centroid[1]],
+            [0, 0, 1]
+        ])
+
+        Tu = np.array([
+            [1, 0, translate_x*pixel_size[0]],
+            [0, 1, translate_y*pixel_size[1]],
+            [0, 0, 1]
+        ])
+
+        M = Tu @ T2 @ R @ S @ T1
+        transformed_vertices = []
+        for v in vertices:
+            transformed_vertices.append(M @ v)
+        return transformed_vertices
+
+    def __get_pixel_size(self, scale_x, scale_y):
+        frame = rvc.frame() # global frame
+
+        sources = rvc.sourcesAtFrame(frame)
+        if len(sources) != 1:
+            return
+        source = sources[0]
+        geometry = rvc.imageGeometry(source)
+
+        g = [np.array(p) for p in geometry]
+
+        size = np.array([
+            scale_x * np.linalg.norm(g[1] - g[0]),
+            scale_y * np.linalg.norm(g[3] - g[0])])
+        width, height = self.__get_current_dimensions()
+        pixel_size = size / np.array([width, height])
+        return pixel_size
 
     # TODO Transforms Indicator
     # def __render_transform_indicators(self, event):
@@ -905,66 +1149,126 @@ class ViewportApiCore(QtCore.QObject):
             GL.glEnd()
 
         # Overlays
-        self.__render_html_overlays()
+        self.__render_html_overlays(event)
+        self.__render_opengl_overlays(event)
 
-    def __render_html_overlays(self):
+    def __render_html_overlays(self, event):
         if self.__viewport_widget is None: return
         html_overlays = self.__session.viewport.get_html_overlays()
         if not html_overlays: return
+
+        frame = rvc.frame() # global frame
+        src_frame = rve.sourceFrame(frame) # source frame
+        clip_id = self.__session_api.get_current_clip()
+        if clip_id is None:
+            return
+
+        sources = rvc.sourcesAtFrame(frame)
+        if len(sources) != 1:
+            return
+        source = sources[0]
+        smi = rvc.sourceMediaInfo(source)
+        geometry = rvc.imageGeometry(source)
+
+        img_width = float(smi["width"])
+        img_height = float(smi["height"])
+
+        # get translate and scale
+        translate_x = self.__session_api.get_attr_value(clip_id, "pan_x")
+        translate_x += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_x", src_frame)
+        translate_y = self.__session_api.get_attr_value(clip_id, "pan_y")
+        translate_y += self.__session_api.get_attr_value_at(clip_id, "dynamic_translate_y", src_frame)
+        scale_x = self.__session_api.get_attr_value(clip_id, "scale_x")
+        scale_x *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_x", src_frame)
+        scale_y = self.__session_api.get_attr_value(clip_id, "scale_y")
+        scale_y *= self.__session_api.get_attr_value_at(clip_id, "dynamic_scale_y", src_frame)
+
+        lb, rb, rt, lt = self.__get_image_rect(
+            img_width, img_height, geometry, -translate_x, -translate_y, 1.0/scale_x, 1.0/scale_y)
+
+        domain = event.domain()
+
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+        GL.glOrtho(0, domain[0], 0, domain[1], -1000000, +1000000)
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glLoadIdentity()
 
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
         for html_overlay in html_overlays:
             if not html_overlay.is_visible: continue
-            w, h = html_overlay.width, html_overlay.height
-            x = html_overlay.x * self.__viewport_widget.width()
-            y = html_overlay.y * self.__viewport_widget.height()
             bg_opacity = html_overlay.bg_opacity
             texture_id = html_overlay.get_custom_attr("gl_texture_id")
-            half_w = w/2
-            half_h = h/2
 
-            lower_left = (x - half_w, y - half_h)
-            lower_right = (x + half_w, y - half_h)
-            upper_right = (x + half_w, y + half_h)
-            upper_left = (x - half_w, y + half_h)
+            if html_overlay.placement == "frame_inside_overlay":
+                ratio = html_overlay.width / html_overlay.height
+                size = rt - lb
+                w = max(size[0], ratio * size[1])
+                h = w / ratio
+                center = 0.5 * (lb + rt)
+                l, r = center[0] - w/2, center[0] + w/2   # left & right
+                b, t = center[1] - h/2, center[1] + h/2   # bottom & top
+            else:
+                w, h = html_overlay.width, html_overlay.height
+                x = html_overlay.x * self.__viewport_widget.width()
+                y = html_overlay.y * self.__viewport_widget.height()
+                l, r = x - w/2, x + w/2   # left & right
+                b, t = y - h/2, y + h/2   # bottom & top
 
             # Background
             GL.glBegin(GL.GL_QUADS)
             GL.glColor4f(0.0, 0.0, 0.0, bg_opacity)
-            GL.glVertex2f(*lower_left)
-            GL.glVertex2f(*lower_right)
-            GL.glVertex2f(*upper_right)
-            GL.glVertex2f(*upper_left)
+            GL.glVertex2f(l, b)
+            GL.glVertex2f(r, b)
+            GL.glVertex2f(r, t)
+            GL.glVertex2f(l, t)
             GL.glEnd()
 
             # Outline
             GL.glLineWidth(1.0)
             GL.glColor4f(0.5, 0.5, 0.5, bg_opacity)
             GL.glBegin(GL.GL_LINE_LOOP)
-            GL.glVertex2f(*lower_left)
-            GL.glVertex2f(*lower_right)
-            GL.glVertex2f(*upper_right)
-            GL.glVertex2f(*upper_left)
+            GL.glVertex2f(l, b)
+            GL.glVertex2f(r, b)
+            GL.glVertex2f(r, t)
+            GL.glVertex2f(l, t)
             GL.glEnd()
 
             # Draw HTML Overlay Texture
-            GL.glColor4f(1.0, 1.0, 1.0, 1.0)
-            GL.glEnable(GL.GL_TEXTURE_2D)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, texture_id)
-            GL.glBegin(GL.GL_QUADS)
-            GL.glTexCoord2f(0.0, 0.0)
-            GL.glVertex2f(*lower_left)
-            GL.glTexCoord2f(1.0, 0.0)
-            GL.glVertex2f(*lower_right)
-            GL.glTexCoord2f(1.0, 1.0)
-            GL.glVertex2f(*upper_right)
-            GL.glTexCoord2f(0.0, 1.0)
-            GL.glVertex2f(*upper_left)
-            GL.glEnd()
-            GL.glDisable(GL.GL_TEXTURE_2D)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
+            if texture_id is not None:
+                GL.glColor4f(1.0, 1.0, 1.0, 1.0)
+                GL.glEnable(GL.GL_TEXTURE_2D)
+                GL.glBindTexture(GL.GL_TEXTURE_2D, texture_id)
+                GL.glBegin(GL.GL_QUADS)
+                GL.glTexCoord2f(0.0, 1.0)
+                GL.glVertex2f(l, b)
+                GL.glTexCoord2f(1.0, 1.0)
+                GL.glVertex2f(r, b)
+                GL.glTexCoord2f(1.0, 0.0)
+                GL.glVertex2f(r, t)
+                GL.glTexCoord2f(0.0, 0.0)
+                GL.glVertex2f(l, t)
+                GL.glEnd()
+                GL.glDisable(GL.GL_TEXTURE_2D)
+                GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
+
+            # Draw Border
+            if html_overlay.border_width > 0.0:
+                GL.glLineWidth(html_overlay.border_width)
+                GL.glColor4f(*html_overlay.border_color)
+                if html_overlay.border_dashed:
+                    GL.glLineStipple(4, 0xAAAA)
+                    GL.glEnable(GL.GL_LINE_STIPPLE)
+                GL.glBegin(GL.GL_LINE_LOOP)
+                GL.glVertex2f(l, b)
+                GL.glVertex2f(r, b)
+                GL.glVertex2f(r, t)
+                GL.glVertex2f(l, t)
+                GL.glEnd()
+                if html_overlay.border_dashed:
+                    GL.glDisable(GL.GL_LINE_STIPPLE)
 
         GL.glDisable(GL.GL_BLEND)
 
@@ -1042,6 +1346,9 @@ class ViewportApiCore(QtCore.QObject):
         for html_overlay in reversed(
             self.__session.viewport.get_html_overlays()):
 
+            if html_overlay.placement is not None:
+                continue
+
             x = html_overlay.x * self.__viewport_widget.width()
             y = self.__viewport_widget.height() - (html_overlay.y * self.__viewport_widget.height())
             half_w = html_overlay.width/2
@@ -1070,3 +1377,7 @@ class ViewportApiCore(QtCore.QObject):
             runtime.eval(
                 "require rv_state_mngr;"
                 "rv_state_mngr.disable_frame_change_mouse_events();",[])
+
+    def toggle_presentation_mode(self):
+        is_presenting = rvc.presentationMode()
+        rvc.setPresentationMode(not is_presenting)

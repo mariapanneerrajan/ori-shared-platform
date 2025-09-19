@@ -9,6 +9,7 @@ except ImportError:
     from PySide6 import QtCore
 from rpa.open_rv.rpa_core.api.utils import itview_to_rv
 from rpa.session_state.color_corrections import ColorTimer, Grade
+from rpa.session_state.utils import itview_to_screen
 import struct
 import platform
 
@@ -403,6 +404,26 @@ class ColorApiCore(QtCore.QObject):
         self._refresh(clip_id)
         return True
 
+    def set_transient_points(self, clip_id, cc_id, token, points):
+        clip = self.__session.get_clip(clip_id)
+        if not clip: return False
+        clip.color_corrections.set_transient_points(cc_id, token, points)
+        self._refresh(clip_id)
+        return True
+
+    def append_transient_points(self, clip_id, cc_id, token, points):
+        clip = self.__session.get_clip(clip_id)
+        if not clip: return False
+        clip.color_corrections.append_transient_points(cc_id, token, points)
+        self._refresh(clip_id)
+        return True
+
+    def delete_transient_points(self, clip_id, cc_id, token):
+        clip = self.__session.get_clip(clip_id)
+        if not clip: return
+        clip.color_corrections.delete_transient_points(cc_id, token)
+        self._refresh(clip_id)
+
     def delete_region(self, clip_id, cc_id):
         clip = self.__session.get_clip(clip_id)
         if not clip: return False
@@ -492,7 +513,7 @@ class ColorApiCore(QtCore.QObject):
         current_clip = self.__session.viewport.current_clip
         for clip in rw_ccs.keys():
             self._refresh(clip)
-            if current_clip == clip:                
+            if current_clip == clip:
                 self.SIG_CCS_MODIFIED.emit(current_clip, None)
         return True
 
@@ -821,48 +842,69 @@ class ColorApiCore(QtCore.QObject):
         This function is triggered by the "render" RV's event. It renders the mask textures
         (for debugging purposes).
         """
-        if len(self.__textures) == 0:
+        if rvc.isPlaying():
             return
-
-        sources = rvc.sourcesAtFrame(rvc.frame())
-        if len(sources) != 1:
+        frame = rve.sourceFrame(rvc.frame())
+        source = self.__get_current_source_node_f(frame)
+        if source is None:
             return
+        clip_id = self.__session.viewport.current_clip
+        if not clip_id: return
+        clip = self.__session.get_clip(clip_id)
+        ccs = []
+        ccs = clip.color_corrections.frame_ccs.get(frame, [])
+        ccs = [clip.color_corrections.id_to_cc[cc_id] for cc_id in ccs]
+        if not ccs: return
 
-        width, height = self.__get_source_resolution(sources[0])
+        domain = event.domain()
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+        GL.glOrtho(0, domain[0], 0, domain[1], -1000000, +1000000)
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glLoadIdentity()
 
-        GL.glColor(1.0, 1.0, 1.0)
-        GL.glLineWidth(1.0)
+        GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
+        GL.glEnable(GL.GL_LINE_SMOOTH)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-        for i, texture in enumerate(self.__textures):
-            GL.glEnable(GL.GL_TEXTURE_2D)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, texture)
-            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glColor(0.5, 0.5, 0.5)
 
-            GL.glMatrixMode(GL.GL_PROJECTION)
-            GL.glLoadIdentity()
-            GL.glOrtho(0, width, 0, height, -1000000, +1000000)
+        geometry = rvc.imageGeometry(source)
 
-            GL.glBegin(GL.GL_QUADS)
-            GL.glTexCoord2f(0, 0)
-            GL.glVertex2f(100*i + 5, 100)
-            GL.glTexCoord2f(1, 0)
-            GL.glVertex2f(100*(i+1), 100)
-            GL.glTexCoord2f(1, 1)
-            GL.glVertex2f(100*(i+1), 200)
-            GL.glTexCoord2f(0, 1)
-            GL.glVertex2f(100*i + 5, 200)
-            GL.glEnd()
+        def cc_modified(cc):
+            for node in cc.nodes:
+                if node.is_modified:
+                    return True
+            return False
 
-            GL.glDisable(GL.GL_TEXTURE_2D)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
+        for cc in ccs:
+            if cc.region:
+                for token, shape in cc.region.transient_shapes.items():
+                    points = [point.__getstate__() for point in shape.points]
+                    if not points:
+                        continue
 
-            GL.glBegin(GL.GL_LINE_LOOP)
-            GL.glVertex2f(100*i + 5, 100)
-            GL.glVertex2f(100*(i+1), 100)
-            GL.glVertex2f(100*(i+1), 200)
-            GL.glVertex2f(100*i + 5, 200)
-            GL.glEnd()
+                    GL.glBegin(GL.GL_LINE_STRIP)
+                    for point in points:
+                        GL.glVertex2f(*itview_to_screen(geometry, *point))
+                    GL.glEnd()
+
+                if cc_modified(cc):
+                    continue
+
+                for shape in cc.region.shapes:
+                    points = [point.__getstate__() for point in shape.points]
+                    if not points:
+                        continue
+
+                    GL.glBegin(GL.GL_LINE_LOOP)
+                    for point in points:
+                        GL.glVertex2f(*itview_to_screen(geometry, *point))
+                    GL.glEnd()
+
+        GL.glDisable(GL.GL_BLEND)
+        GL.glDisable(GL.GL_LINE_SMOOTH)
 
     def post_render(self, event):
         """

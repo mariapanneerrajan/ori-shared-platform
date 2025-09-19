@@ -19,7 +19,7 @@ class TimelineApiCore(QtCore.QObject):
 
         self.__session_api.SIG_PLAYLIST_MODIFIED.connect(
             self.__playlist_seq_modified)
-        self.__session_api.SIG_ACTIVE_CLIPS_CHANGED.connect(
+        self.__session_api.SIG_ACTIVE_CLIPS_SET.connect(
             self.__playlist_seq_modified)
         self.__session_api.SIG_ATTR_VALUES_CHANGED.connect(
             self.__attr_values_changed)
@@ -105,22 +105,15 @@ class TimelineApiCore(QtCore.QObject):
         self.SIG_PLAY_STATUS_CHANGED.emit(is_playing, is_forward)
 
     def __playlist_seq_modified(self, playlist_id):
-        if self.__session.viewport.fg == playlist_id:
-            self.__session.timeline.update()
-            self.SIG_MODIFIED.emit()
+        if self.__session.viewport.fg != playlist_id: return
+        self.__session.timeline.update()
+        self.SIG_MODIFIED.emit()
 
     def __attr_values_changed(self, attr_values):
-        for attr_value in attr_values:
-            playlist_id, clip_id, attr_id, value = attr_value
-            if all([
-                self.__session.viewport.fg == playlist_id,
-                any([
-                    attr_id == "key_in",
-                    attr_id == "key_out"
-                ])
-            ]):
-                self.__session.timeline.update()
-                self.SIG_MODIFIED.emit()
+        if any(attr_value[0] == self.__session.viewport.fg and \
+            attr_value[2] in ("key_in", "key_out") for attr_value in attr_values):
+            self.__session.timeline.update()
+            self.SIG_MODIFIED.emit()
 
     def __set_current_frame(self, frame):
         out = self.__session.timeline.set_current_frame(frame)

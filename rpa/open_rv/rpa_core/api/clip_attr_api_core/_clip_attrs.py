@@ -15,6 +15,7 @@ from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs import \
     clip_attr_key_in, \
     clip_attr_key_out, \
     clip_attr_length_diff, \
+    clip_attr_marker, \
     clip_attr_media_end_frame, \
     clip_attr_media_fps, \
     clip_attr_media_length, \

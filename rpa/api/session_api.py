@@ -45,9 +45,6 @@ class SessionApi(QtCore.QObject):
     # Example of how the attr values will be carried by this signal,
     # [(playlist_id, clip_id, attr_id, value),
     #  (playlist_id, clip_id, attr_id, value)]
-    SIG_ACTIVE_CLIPS_CHANGED = QtCore.Signal(str) # playlist_id
-    # Gets emitted whenever the list of active clips are changed
-    # for a particular playlist.
 
     def __init__(self, logger):
         super().__init__()
@@ -287,10 +284,10 @@ class SessionApi(QtCore.QObject):
     def set_bg_mode(self, mode:int)->bool:
         """
         Set the Background-Mode(BG Mode) to be used in the session.
-        The BG Mode is relevant only if a BG playlist is set. The various
-        BG Modes can be set using integers to identify them. The following
-        are the integers which can be used to set the various available
-        BG modes,
+        The BG Mode is relevant only if a BG playlist is set. Deactivates
+        the Mix Mode if on. The various BG Modes can be set using integers
+        to identify them. The following are the integers which can be used
+        to set the various available BG modes,
         1 - Wipe Mode
         2 - Side by Side Mode
         3 - Top to Bottom Mode
@@ -324,9 +321,10 @@ class SessionApi(QtCore.QObject):
     def set_mix_mode(self, mode):
         """
         Set the Background Mix Mode to be used in the session.
-        The Mix Mode is relevant only if a BG playlist is set. The various
-        Mix Modes can be set using integers to identify them. The following
-        are the integers which can be used to set the various available
+        The Mix Mode is relevant only if a BG playlist is set. Deactivates the
+        Background Mode if on. The various Mix Modes can be set using
+        integers to identify them. The following are the integers which can
+        be used to set the various available
         mix modes:
         0 - None
         1 - Add
@@ -563,6 +561,53 @@ class SessionApi(QtCore.QObject):
             (bool): True if set False otherwise
         """
         return self.__delegate_mngr.call(self.set_clip_path, [id, path])
+
+    def edit_frames(self, clip_id:str, edit:int, local_frame:int, num_frames:int):
+        """
+        Edit frames for a particular clip given the clip_id.
+        The type of edit can either be to hold or drop frame(s).
+        edit can either be 1 to hold frames or -1 to drop frames.
+        The local_frame refers to the 1-based index or the relative
+        position of the clip frame, within the local sequence of the clip.
+        The local_frame can be obtained from timeline api's get_clip_frames() method.
+        Lastly, num_frames is used to specify the number of frames to hold or drop.
+
+        Example of hold: edit_frames("clip_id1", 1, 5, 6)
+                         hold the frame at local_frame (index) = 5 for 6 frames
+                         (ie. 6 frames added in addition to the original frame)
+        Example of drop: edit_frames("clip_id2", -1, 10, 3)
+                         drop from local_frame (index) = 10 for 3 frames
+                         (ie. frames at position 10, 11, 12 will be dropped)
+
+        Args:
+            edit (int): 1 for hold and -1 for drop, any other value will be ignored
+            local_frame (int): 1-based index position of the clip frame within the local clip sequence
+            num_frames (int): number of frames to hold or drop
+        """
+        return self.__delegate_mngr.call(self.edit_frames, [clip_id, edit, local_frame, num_frames])
+
+    def reset_frames(self, clip_id:str):
+        """
+        Removes all the frame edits done on a clip given the clip_id.
+        This will also reset any timewarp attributes on the clip (timewarp_in, timewarp_out, timewarp_length)
+        The clip will revert back to a frame range between key_in and key_out.
+
+        Args:
+            clip_id (str): Id of the clip
+        """
+        return self.__delegate_mngr.call(self.reset_frames, [clip_id])
+
+    def has_frame_edits(self, clip_id:str)->bool:
+        """
+        Returns True if the clip has any frame edits otherwise False
+        The frame edits are confined to frame edits only and excludes key_in and key_out changes.
+        Note: Once clip has any frame edits, clip's key_in attribute can not change.
+
+        Returns:
+            (bool): True if clip has frame edits, otherwise False
+        """
+        return self.__delegate_mngr.call(self.has_frame_edits, [clip_id])
+
 
     ###########################################################################
     # Custom Attr Methods                                                     #
@@ -1068,3 +1113,31 @@ class SessionApi(QtCore.QObject):
             int: Behavior mode of current frame
         """
         return self.__delegate_mngr.call(self.get_current_frame_mode)
+
+    def export(self, path, output_color_space="default", blocking=False):
+        """
+        Export the current playlist into a video file.
+
+        Args:
+            path (str): Destination file path where the exported output will be saved.
+                Provide a file path including extension (e.g., ".mp4", ".mov").
+            output_color_space (str, optional): Name of the color space to use for export.
+                Defaults to "default". Use this to override the color space settings if needed.
+            blocking (bool, optional): If True, the function blocks until the export finishes.
+                If False (default), the export runs asynchronously in the background.
+
+        Returns:
+            None: This method does not return a value.
+        """
+        return self.__delegate_mngr.call(self.export, [path, output_color_space, blocking])
+
+    def core_preferences(self):
+        """Opens the core preferences window.
+
+        This method triggers the application to display the core preferences
+        window, allowing the user to adjust configuration settings.
+
+        Returns:
+            None: This method does not return a value.
+        """
+        return self.__delegate_mngr.call(self.core_preferences)

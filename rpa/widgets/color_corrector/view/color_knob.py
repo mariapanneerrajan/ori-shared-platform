@@ -71,7 +71,7 @@ class ColorKnob(QtWidgets.QWidget):
         self.__is_default = True
 
         self.__current_value = None
-        self.__current_rgb = []
+        self.__current_rgb = [0.0, 0.0, 0.0]
 
         self.__label = QtWidgets.QLabel(self.__name, self)
         self.__label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)

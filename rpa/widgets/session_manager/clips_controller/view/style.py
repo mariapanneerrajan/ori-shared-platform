@@ -22,12 +22,12 @@ class Style(QtWidgets.QProxyStyle):
             last_rect.setLeft(table_view.viewport().rect().left())
             last_rect.setRight(rect_width)
 
-            selected_indexes = sorted(table_view.get_selected_indexes())
+            selected_rows = sorted(table_view.get_selected_rows())
             moved_index = table_view.get_mindex_at_pos().row()
 
             offset = 0
-            if selected_indexes:
-                offset = moved_index - selected_indexes[0]
+            if selected_rows:
+                offset = moved_index - selected_rows[0]
 
             painter.save()
 

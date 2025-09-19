@@ -160,7 +160,7 @@ class TestColorApi:
         self.__label.setText("__get_ro_rw_frames")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
 
         frame_cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         self.__rpa.color_api.delete_ccs(clip_id, frame_cc_ids, current_frame)
@@ -191,7 +191,7 @@ class TestColorApi:
         self.__label.setText("__set_node_properties")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -211,7 +211,7 @@ class TestColorApi:
         self.__label.setText("delete_node_3")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -227,7 +227,7 @@ class TestColorApi:
         self.__label.setText("delete_node_2")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -243,7 +243,7 @@ class TestColorApi:
         self.__label.setText("delete_node_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -259,7 +259,7 @@ class TestColorApi:
         self.__label.setText("mute_node_4")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         for node_index in [1,2,3]:
@@ -276,7 +276,7 @@ class TestColorApi:
         self.__label.setText("mute_node_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -316,7 +316,7 @@ class TestColorApi:
         self.__label.setText("mute_node_2")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -353,7 +353,7 @@ class TestColorApi:
         self.__label.setText("mute_node_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         node_count = self.__rpa.color_api.get_node_count(clip_id, cc_id)
@@ -392,7 +392,7 @@ class TestColorApi:
         self.__label.setText("set_name")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         name = self.__rpa.color_api.get_name(clip_id, cc_id)
@@ -407,7 +407,7 @@ class TestColorApi:
         self.__label.setText("set_region_falloff_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         region_falloff = self.__rpa.color_api.get_region_falloff(clip_id, cc_id)
@@ -422,7 +422,7 @@ class TestColorApi:
         self.__label.setText("set_region_falloff_2")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         region_falloff = self.__rpa.color_api.get_region_falloff(clip_id, cc_id)
@@ -437,7 +437,7 @@ class TestColorApi:
         self.__label.setText("mute")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         is_mute = self.__rpa.color_api.is_mute(clip_id, cc_id)
@@ -452,7 +452,7 @@ class TestColorApi:
         self.__label.setText("un_mute")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         is_mute = self.__rpa.color_api.is_mute(clip_id, cc_id)
@@ -467,7 +467,7 @@ class TestColorApi:
         self.__label.setText("set_read_only")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         is_read_only = self.__rpa.color_api.is_read_only(clip_id, cc_id)
@@ -482,7 +482,7 @@ class TestColorApi:
         self.__label.setText("unset_read_only")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         is_read_only = self.__rpa.color_api.is_read_only(clip_id, cc_id)
@@ -521,7 +521,7 @@ class TestColorApi:
         self.__label.setText("create_region_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_id = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)[0]
 
         has_region = self.__rpa.color_api.has_region(clip_id, cc_id)
@@ -537,7 +537,7 @@ class TestColorApi:
         self.__label.setText("__append_nodes")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
 
         color_timer_1 = ColorTimer(offset=(0.5, 0.5, 0.5))
@@ -562,7 +562,7 @@ class TestColorApi:
         self.__label.setText("__get_nodes_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         nodes = self.__rpa.color_api.get_nodes(clip_id, cc_ids[0])
         print("nodes", nodes)
@@ -572,7 +572,7 @@ class TestColorApi:
         self.__label.setText("append_frame_cc_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         names_before = [self.__rpa.color_api.get_name(clip_id, cc_id) for cc_id in cc_ids]
         print("names_before:", names_before)
@@ -588,7 +588,7 @@ class TestColorApi:
         self.__label.setText("delete_frame_ccs_3")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         names_before = [self.__rpa.color_api.get_name(clip_id, cc_id) for cc_id in cc_ids]
         print("names_before:", names_before)
@@ -604,7 +604,7 @@ class TestColorApi:
         self.__label.setText("delete_frame_ccs_2")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         names_before = [self.__rpa.color_api.get_name(clip_id, cc_id) for cc_id in cc_ids]
         print("names_before:", names_before)
@@ -620,7 +620,7 @@ class TestColorApi:
         self.__label.setText("move_frame_cc_2")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         names_before = [self.__rpa.color_api.get_name(clip_id, cc_id) for cc_id in cc_ids]
         print("names_before:", names_before)
@@ -634,7 +634,7 @@ class TestColorApi:
         self.__label.setText("append_frame_ccs_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         cc_ids = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         names_before = [self.__rpa.color_api.get_name(clip_id, cc_id) for cc_id in cc_ids]
         print("names_before:", names_before)
@@ -667,7 +667,7 @@ class TestColorApi:
         self.__label.setText("delete_frame_ccs_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         ccs_before = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         print("ccs_before", ccs_before)
         self.__rpa.color_api.delete_ccs(clip_id, ccs_before, current_frame)
@@ -679,7 +679,7 @@ class TestColorApi:
         self.__label.setText("move_frame_cc_1")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         ccs_before = self.__rpa.color_api.get_cc_ids(clip_id, current_frame)
         print("ccs_before", ccs_before)
         self.__rpa.color_api.move_cc(clip_id, 0, 10, current_frame)
@@ -691,7 +691,7 @@ class TestColorApi:
         self.__label.setText("get_frame_ccs")
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
         ccs = self.__rpa.color_api.get_cc_ids(clip_id, frame=current_frame)
         print("ccs", ccs)
         assert len(ccs) == 0
@@ -756,7 +756,7 @@ class TestColorApi:
 
         clip_id = self.__rpa.session_api.get_current_clip()
         current_frame = self.__rpa.timeline_api.get_current_frame()
-        _, current_frame = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
+        _, current_frame, _ = self.__rpa.timeline_api.get_clip_frames([current_frame])[0]
 
         clip_cc_ids = self.__rpa.color_api.get_cc_ids(clip_id)
         assert len(clip_cc_ids) == 1
@@ -803,7 +803,7 @@ class TestColorApi:
         self.__label.setText("Create Frame cc (1001) Read only")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__frame_ro_id = self.__rpa.color_api.append_ccs(cguid, ["FrameCCRO"], frame)[0]
         self.__rpa.color_api.append_nodes(cguid, self.__frame_ro_id, [ColorTimer()])
         self.__rpa.color_api.append_nodes(cguid, self.__frame_ro_id, [Grade()])
@@ -813,7 +813,7 @@ class TestColorApi:
         self.__label.setText("Set Frame cc (1001) Read only")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         values = {"blackpoint": (1.5, 1.5, 1.5)}
         self.__rpa.color_api.set_node_properties(cguid, self.__frame_ro_id, 1, values)
 
@@ -821,7 +821,7 @@ class TestColorApi:
         self.__label.setText("Create Frame cc (1001) Read write")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__frame_rw_id = self.__rpa.color_api.append_ccs(cguid, ["FrameCCRW"], frame)[0]
         self.__rpa.color_api.append_nodes(cguid, self.__frame_rw_id, [ColorTimer()])
         self.__rpa.color_api.append_nodes(cguid, self.__frame_rw_id, [Grade()])
@@ -830,7 +830,7 @@ class TestColorApi:
         self.__label.setText("Set Frame cc (1001) Read write")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         values = {"lift": (0.5, 0.5, 0.5)}
         self.__rpa.color_api.set_node_properties(cguid, self.__frame_rw_id, 1, values)
 
@@ -838,7 +838,7 @@ class TestColorApi:
         self.__label.setText("delete FrameRO")
         cguid = self.__rpa.session_api.get_current_clip()
         frame = self.__rpa.timeline_api.get_current_frame()
-        _, frame = self.__rpa.timeline_api.get_clip_frames([frame])[0]
+        _, frame, _ = self.__rpa.timeline_api.get_clip_frames([frame])[0]
         self.__rpa.color_api.delete_ccs(cguid, [self.__frame_ro_id], frame)
 
     def __create_clips(self):

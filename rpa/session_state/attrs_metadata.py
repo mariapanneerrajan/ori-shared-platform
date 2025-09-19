@@ -30,6 +30,42 @@ class AttrsMetadata:
                 }
             }
         )
+        self.add(
+            {
+                "timewarp_in": {
+                    "name": "Timewarp In",
+                    "data_type": "int",
+                    "is_read_only": True,
+                    "is_keyable": False,
+                    "default_value": None,
+                    "attr_type": "session"
+                }
+            }
+        )
+        self.add(
+            {
+                "timewarp_out": {
+                    "name": "Timewarp Out",
+                    "data_type": "int",
+                    "is_read_only": True,
+                    "is_keyable": False,
+                    "default_value": None,
+                    "attr_type": "session"
+                }
+            }
+        )
+        self.add(
+            {
+                "timewarp_length": {
+                    "name": "Timewarp Length",
+                    "data_type": "int",
+                    "is_read_only": True,
+                    "is_keyable": False,
+                    "default_value": None,
+                    "attr_type": "session"
+                }
+            }
+        )
 
     @property
     def parent(self):
