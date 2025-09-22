@@ -207,6 +207,11 @@ class AnnotationApiCore(QtCore.QObject):
         if not clip: return []
         return clip.annotations.get_ro_frames()
 
+    def get_ro_note_frames(self, clip_id):
+        clip = self.__session.get_clip(clip_id)
+        if not clip: return []
+        return clip.annotations.get_ro_note_frames()
+
     def set_rw_annotations(self, annotations):
         for clip_id, frame_annotations in annotations.items():
             for frame, annotation in frame_annotations.items():

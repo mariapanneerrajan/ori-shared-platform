@@ -164,7 +164,6 @@ class OTIOWriter(object):
             if attr_value != default_attr_value:
                 key_value_dict = \
                     {str(key): value for key, value in attr_value.get("key_values").items()}
-                print('key_value_dict', key_value_dict, type(key_value_dict))
                 clip_metadata.setdefault(keyable_attr, {})["key_values"] = key_value_dict
 
         # Feedback: Annotations & Color Corrections

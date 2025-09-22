@@ -76,6 +76,7 @@ class TimelineSlider(QtWidgets.QWidget):
         self.__key_set = set()
         self.__annotation_ro_keys = set()
         self.__annotation_rw_keys = set()
+        self.__annotation_ro_note_keys = set()
         self.__cc_ro_keys = set()
         self.__cc_rw_keys = set()
         self.__transform_keys = set()
@@ -311,6 +312,10 @@ class TimelineSlider(QtWidgets.QWidget):
         if self.__show_misc_keys == flag:
             return
         self.__show_misc_keys = flag
+        self.update()
+
+    def set_annotation_ro_note_keys(self, frames):
+        self.__annotation_ro_note_keys = frames
         self.update()
 
     def set_annotation_ro_keys(self, frames):
@@ -637,6 +642,7 @@ class TimelineSlider(QtWidgets.QWidget):
                     self.__key_mouse_state,
                     self.__annotation_rw_keys,
                     self.__annotation_ro_keys,
+                    self.__annotation_ro_note_keys,
                     self.__cc_ro_keys,
                     self.__cc_rw_keys,
                     self.__selected_key_set,
@@ -669,6 +675,7 @@ class TimelineSlider(QtWidgets.QWidget):
             self.__paint_keys(painter, self.__cc_ro_keys, self.__ro_annotation_frame_color)
             self.__paint_keys(painter, self.__cc_rw_keys, self.__rw_annotation_frame_color)
             self.__paint_keys(painter, self.__annotation_rw_keys, self.__rw_annotation_frame_color)
+            self.__paint_keys(painter, self.__annotation_ro_note_keys, self.__key_frame_color)
             self.__paint_transform_keys(painter)
 
             # Uses self.__timeRange, self.__misc_key_set,

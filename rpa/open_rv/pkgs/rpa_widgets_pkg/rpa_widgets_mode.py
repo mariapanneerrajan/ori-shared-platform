@@ -24,6 +24,8 @@ from rpa.widgets.background_modes.background_modes import BackgroundModes
 from rpa.widgets.rpa_interpreter.rpa_interpreter import RpaInterpreter
 from rpa.widgets.session_io.session_io import SessionIO
 from rpa.widgets.media_path_overlay.media_path_overlay import MediaPathOverlay
+from rpa.widgets.session_auto_saver.session_auto_saver import SessionAutoSaver
+from rpa.widgets.frame_editor.frame_editor import FrameEditor
 # from rpa.widgets.playlist_creator.playlist_creator import PlaylistCreator
 
 from rpa.widgets.test_widgets.test_session_api import TestSessionApi
@@ -78,7 +80,8 @@ class DockWidget(QtWidgets.QDockWidget):
         super().__init__(title, parent)
         self.setFeatures(
             QtWidgets.QDockWidget.DockWidgetClosable | \
-            QtWidgets.QDockWidget.DockWidgetMovable)
+            QtWidgets.QDockWidget.DockWidgetMovable | \
+            QtWidgets.QDockWidget.DockWidgetFloatable)
 
 
 class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
@@ -279,6 +282,8 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         self.__background_modes_dock = None
         self.__rpa_interpreter_dock = None
         self.__media_path_overlay_dock = None
+        self.__session_auto_saver_dock = None
+        self.__frame_editor_dock = None
         self.__playlist_creator_dock = None
         self.__test_session_api_dock = None
         self.__test_timeline_api_dock = None
@@ -292,6 +297,7 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         self.__hide_rv_timeline()
         self.__show_timeline()
         self.__show_color_corrector()
+        self.__show_session_auto_saver(False)
 
         commands.writeSettings("rpa", "is_rpa_mode", True)
 
@@ -416,6 +422,14 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
 
         action = QAction("Show Rotation Slider ", parent=self.__main_window)
         action.triggered.connect(self.__show_rotation_slider)
+        rpa_widgets_menu.addAction(action)
+
+        action = QAction("Session Auto Saver", parent=self.__main_window)
+        action.triggered.connect(self.__show_session_auto_saver)
+        rpa_widgets_menu.addAction(action)
+
+        action = QAction("Frame Editor", parent=self.__main_window)
+        action.triggered.connect(self.__show_frame_editor)
         rpa_widgets_menu.addAction(action)
 
         # action = QAction("Playlists Creator", parent=self.__main_window)
@@ -683,6 +697,45 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         self.__main_window.addDockWidget(
             QtCore.Qt.RightDockWidgetArea, self.__media_path_overlay_dock)
         self.__media_path_overlay_dock.show()
+
+    def __show_session_auto_saver(self, show=True):
+        if not self.__is_init_done(): return
+
+        if self.__session_auto_saver_dock:
+            self.__toggle_dock_visibility(self.__session_auto_saver_dock)
+            return
+
+        self.__session_auto_saver = \
+            SessionAutoSaver(self.__rpa, self.__main_window)
+
+        self.__session_auto_saver_dock = \
+            DockWidget("Session Autosaver", self.__main_window)
+        self.__session_auto_saver_dock.setWidget(self.__session_auto_saver)
+        self.__main_window.addDockWidget(
+            QtCore.Qt.RightDockWidgetArea, self.__session_auto_saver_dock)
+        if show:
+            self.__session_auto_saver_dock.show()
+        else:
+            self.__session_auto_saver_dock.hide()
+
+    def __show_frame_editor(self, show=True):
+        if not self.__is_init_done(): return
+
+        if self.__frame_editor_dock:
+            self.__toggle_dock_visibility(self.__frame_editor_dock)
+            return
+
+        self.__frame_editor = FrameEditor(self.__rpa, self.__main_window)
+
+        self.__frame_editor_dock = \
+            DockWidget("Frame Editor", self.__main_window)
+        self.__frame_editor_dock.setWidget(self.__frame_editor)
+        self.__main_window.addDockWidget(
+            QtCore.Qt.RightDockWidgetArea, self.__frame_editor_dock)
+        if show:
+            self.__frame_editor_dock.show()
+        else:
+            self.__frame_editor_dock.hide()
 
     # def __show_playlists_creator(self):
     #     if not self.__is_init_done(): return

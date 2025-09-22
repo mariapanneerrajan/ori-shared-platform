@@ -512,6 +512,66 @@ class ColorApi(QtCore.QObject):
         return self.__delegate_mngr.call(
             self.append_shape_to_region, [clip_id, cc_id, points])
 
+    def set_transient_points(
+        self, clip_id:str, cc_id:str, token:str, points:List[Tuple[float]]) -> bool:
+        """
+        Replace all transient points for a given clip, color correction, and token with new points.
+
+        This method sets the full list of transient points associated with the specified
+        clip, color correction identifier and token. Any previously existing transient points
+        for the given token are overwritten.
+
+        Args:
+            clip_id (str): Unique identifier of the clip.
+            cc_id (str): Unique identifier of the color correction instance.
+            token (str): Arbitrary identifier or name of the transient points.
+            points (List[Tuple[float]]): A list of points to set, where each point is a tuple
+                of float values -- 2D coordinates.
+
+        Returns:
+            bool: True if the points were successfully set, False otherwise.
+        """
+        return self.__delegate_mngr.call(
+            self.set_transient_points, [clip_id, cc_id, token, points])
+
+    def append_transient_points(
+        self, clip_id:str, cc_id:str, token:str, points:List[Tuple[float]]) -> bool:
+        """
+        Append additional transient points to the existing set for a given clip,
+        color correction, and token.
+
+        This method adds the given transient points to the end of the current list
+        of points associated with the specified clip, color correction, and token.
+
+        Args:
+            clip_id (str): Unique identifier of the clip.
+            cc_id (str): Unique identifier of the color correction instance.
+            token (str): Arbitrary identifier or name of the transient points.
+            points (List[Tuple[float]]): A list of points to append, where each point is a tuple
+                of float values -- 2D coordinates.
+
+        Returns:
+            bool: True if the points were successfully appended, False otherwise.
+        """
+        return self.__delegate_mngr.call(
+            self.append_transient_points, [clip_id, cc_id, token, points])
+
+    def delete_transient_points(
+        self, clip_id:str, cc_id:str, token:str):
+        """
+        Remove all transient points for a given clip, color correction, and token.
+
+        This method deletes all transient points associated with the specified
+        clip, color correction identifier, and token.
+
+        Args:
+            clip_id (str): Unique identifier of the clip.
+            cc_id (str): Unique identifier of the color correction instance.
+            token (str): Arbitrary identifier or name of the transient points.
+        """
+        return self.__delegate_mngr.call(
+            self.delete_transient_points, [clip_id, cc_id, token])
+
     def delete_region(self, clip_id:str, cc_id:str) -> bool:
         """
         Delete a mask/region in the specified clip and color correction.

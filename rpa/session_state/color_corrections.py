@@ -128,6 +128,7 @@ class Shape:
 class Region:
     falloff: int = 0
     shapes: List[Shape] = field(default_factory=list)
+    transient_shapes: dict = field(default_factory=dict)
     __custom_attrs: dict = field(default_factory=dict)
 
     def set_custom_attr(self, attr_id, value):
@@ -443,6 +444,26 @@ class ColorCorrections:
         if cc.region is None: return
         points = [Point(*point) for point in points]
         cc.region.shapes.append(Shape(points=points))
+
+    def set_transient_points(self, cc_id, token, points):
+        cc = self.id_to_cc.get(cc_id, None)
+        if not cc: return
+        if cc.region is None: return
+        points = [Point(*point) for point in points]
+        cc.region.transient_shapes.setdefault(token, Shape()).points = points
+
+    def append_transient_points(self, cc_id, token, points):
+        cc = self.id_to_cc.get(cc_id, None)
+        if not cc: return
+        if cc.region is None: return
+        points = [Point(*point) for point in points]
+        cc.region.transient_shapes.setdefault(token, Shape()).points.extend(points)
+
+    def delete_transient_points(self, cc_id, token):
+        cc = self.id_to_cc.get(cc_id, None)
+        if not cc: return
+        if cc.region is None: return
+        cc.region.transient_shapes.pop(token, None)
 
     def set_region_falloff(self, cc_id, falloff):
         cc = self.id_to_cc.get(cc_id, None)

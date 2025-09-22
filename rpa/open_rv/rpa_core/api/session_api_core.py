@@ -1,22 +1,26 @@
 from rpa.session_state.session import Session
 try:
-    from PySide2 import QtCore
+    from PySide2 import QtCore, QtWidgets
 except ImportError:
-    from PySide6 import QtCore
+    from PySide6 import QtCore, QtWidgets
 from rv import commands, runtime, extra_commands
 from typing import List, Any
 from rpa.open_rv.rpa_core.api import prop_util
 from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
+from pymu import MuSymbol
 
 class SessionApiCore(QtCore.QObject):
     SIG_PLAYLISTS_MODIFIED = QtCore.Signal()
     SIG_PLAYLIST_MODIFIED = QtCore.Signal(str) # playlist_id
     SIG_FG_PLAYLIST_CHANGED = QtCore.Signal(str) # playlist_id
     SIG_BG_PLAYLIST_CHANGED = QtCore.Signal(object) # playlist_id
-    SIG_ACTIVE_CLIPS_CHANGED = QtCore.Signal(str) # playlist_id
     SIG_CURRENT_CLIP_CHANGED = QtCore.Signal(object) # clip_id
     SIG_CLIPS_DELETED = QtCore.Signal(list) # [clip_ids]
+    # This is an internal signal. At the moment, its primary purpose is to
+    # update the timeline state.
+    SIG_ACTIVE_CLIPS_SET = QtCore.Signal(str) # playlist_id
+
 
     _SIG_ATTR_IDS_ADDED = QtCore.Signal(list) # attr_ids
     SIG_ATTR_VALUES_CHANGED = QtCore.Signal(list)
@@ -52,7 +56,7 @@ class SessionApiCore(QtCore.QObject):
         self.__fg_playlist_id = self.__session.viewport.fg
         self.__bg_playlist_id = self.__session.viewport.bg
         self.__map_default_playlist_if_created()
-        self.__update_fg_playlist()
+        self.__set_fg_pl_seq_grp_to_view_node()
         self.__set_bg_mode(self.__session.viewport.bg_mode)
         self.SIG_PLAYLISTS_MODIFIED.emit()
         self.__update_current_clip()
@@ -118,19 +122,17 @@ class SessionApiCore(QtCore.QObject):
 
         self.__session.delete_playlists_permanently(ids)
         self.__map_default_playlist_if_created()
-        self.__update_fg_playlist()
+        self.__set_fg_pl_seq_grp_to_view_node()
         self.__set_bg_mode(self.__session.viewport.bg_mode)
-        fg_playlist = self.__session.get_playlist(self.__session.viewport.fg)
-        node_name = fg_playlist.get_custom_attr("rv_sequence_group")
-        commands.setViewNode(node_name)
         self.SIG_PLAYLISTS_MODIFIED.emit()
+
         self.__update_current_clip()
         return True
 
     def delete_playlists(self, ids:List[str]=None):
         self.__session.delete_playlists(ids)
         self.__map_default_playlist_if_created()
-        self.__update_fg_playlist()
+        self.__set_fg_pl_seq_grp_to_view_node()
         self.__set_bg_mode(self.__session.viewport.bg_mode)
         self.SIG_PLAYLISTS_MODIFIED.emit()
         self.__update_current_clip()
@@ -164,7 +166,8 @@ class SessionApiCore(QtCore.QObject):
             commands.setStringProperty(f"{playlist_node}.ui.name", [playlist.name])
             playlist.set_custom_attr("rv_sequence_group", playlist_node)
 
-        self.__update_fg_playlist()
+        self.__set_fg_pl_seq_grp_to_view_node()
+        self.SIG_PLAYLIST_MODIFIED.emit(self.__session.viewport.fg)
         self.__set_bg_mode(self.__session.viewport.bg_mode)
         self.SIG_PLAYLISTS_MODIFIED.emit()
         self.__update_current_clip()
@@ -175,14 +178,17 @@ class SessionApiCore(QtCore.QObject):
         if self.__session.viewport.bg is None:
             playlist = self.__session.get_playlist(self.__session.viewport.fg)
             self.__update_clip_nodes_in_playlist_node(playlist)
-            self.SIG_ACTIVE_CLIPS_CHANGED.emit(playlist.id)
+            self.SIG_PLAYLIST_MODIFIED.emit(playlist.id)
             self.__update_current_clip()
         else:
             self.__update_clip_nodes_in_playlist_node(
                 self.__session.get_playlist(self.__session.viewport.bg))
-        self.__update_fg_playlist()
-        self.__set_bg_mode(self.__session.viewport.bg_mode)
-        self.__set_mix_mode(self.__session.viewport.mix_mode)
+        if self.__session.viewport.bg_mode != 0:
+            self.__set_bg_mode(self.__session.viewport.bg_mode)
+        elif self.__session.viewport.mix_mode != 0:
+            self.__set_mix_mode(self.__session.viewport.mix_mode)
+        else:
+            self.__set_fg_pl_seq_grp_to_view_node()
         self.__update_current_clip()
         self.__set_current_frame(current_frame)
         self.__redraw_annotations()
@@ -195,8 +201,13 @@ class SessionApiCore(QtCore.QObject):
         if self.__session.viewport.bg is not None:
             self.__update_clip_nodes_in_playlist_node(
                 self.__session.get_playlist(self.__session.viewport.bg))
-        self.__update_fg_playlist()
-        self.__set_bg_mode(self.__session.viewport.bg_mode)
+        self.__set_fg_pl_seq_grp_to_view_node()
+        if self.__session.viewport.bg_mode != 0:
+            self.__set_bg_mode(self.__session.viewport.bg_mode)
+        elif self.__session.viewport.mix_mode != 0:
+            self.__set_mix_mode(self.__session.viewport.mix_mode)
+        else:
+            self.__set_fg_pl_seq_grp_to_view_node()
         if self.__session.viewport.bg is None:
             commands.setFrame(current_frame)
         else:
@@ -254,16 +265,10 @@ class SessionApiCore(QtCore.QObject):
 
         clips_created = 0
         for id, path in zip(ids, paths):
-            stack_node, source_node = self.__create_clip_nodes(id, path)
+            self.__create_clip_nodes(id, path)
             clips_created += 1
             self.PRG_CLIP_CREATED.emit(clips_created, num_of_clips_to_create)
         self.PRG_CLIPS_CREATION_COMPLETED.emit()
-
-        playlist_node_name = playlist.get_custom_attr("rv_sequence_group")
-        clips_node_names = [self.__session.get_clip(clip_id).\
-            get_custom_attr("rv_stack_group") \
-            for clip_id in playlist.active_clip_ids]
-        commands.setNodeInputs(playlist_node_name, clips_node_names)
 
         attr_values_list = []
         attr_values = self.__get_attr_values(
@@ -276,6 +281,8 @@ class SessionApiCore(QtCore.QObject):
                 attr_values_list.append(
                     (playlist.id, clip.id, attr_id, value))
 
+        self.__update_clip_nodes_in_playlist_node(playlist)
+
         for play_order, clip_id in enumerate(playlist.clip_ids):
             clip = self.__session.get_clip(clip_id)
             attr_id = "play_order"
@@ -283,14 +290,14 @@ class SessionApiCore(QtCore.QObject):
             clip.set_attr_value(attr_id, value)
             attr_values_list.append(
                 (playlist.id, clip.id, attr_id, value))
-
-        commands.setViewNode(playlist_node_name)
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values_list)
+
+        self.__set_fg_pl_seq_grp_to_view_node()
+        self.SIG_PLAYLIST_MODIFIED.emit(playlist_id)
         self.__update_current_clip()
-        self.SIG_PLAYLIST_MODIFIED.emit(playlist.id)
         return ids
 
-    def __update_fg_playlist(self):
+    def __set_fg_pl_seq_grp_to_view_node(self):
         fg_playlist = self.__session.get_playlist(self.__session.viewport.fg)
         sequence = fg_playlist.get_custom_attr("rv_sequence_group")
         commands.setViewNode(sequence)
@@ -342,7 +349,8 @@ class SessionApiCore(QtCore.QObject):
             self.__update_clip_nodes_in_playlist_node(
                 self.__session.get_playlist(self.__session.viewport.bg))
         self.__update_clip_nodes_in_playlist_node(playlist)
-        self.SIG_ACTIVE_CLIPS_CHANGED.emit(playlist_id)
+
+        self.SIG_ACTIVE_CLIPS_SET.emit(playlist_id)
         self.__update_current_clip()
         self.__set_current_frame(current_frame)
 
@@ -367,6 +375,8 @@ class SessionApiCore(QtCore.QObject):
             clip.set_attr_value(attr_id, value)
             attr_values.append((playlist.id, clip.id, attr_id, value))
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values)
+
+        self.__update_clip_nodes_in_playlist_node(playlist)
         self.SIG_PLAYLIST_MODIFIED.emit(playlist.id)
         return True
 
@@ -388,6 +398,7 @@ class SessionApiCore(QtCore.QObject):
                 clip.set_attr_value(attr_id, value)
                 attr_values.append((playlist.id, clip.id, attr_id, value))
             self.SIG_ATTR_VALUES_CHANGED.emit(attr_values)
+            self.__update_clip_nodes_in_playlist_node(playlist)
             self.SIG_PLAYLIST_MODIFIED.emit(playlist.id)
         return True
 
@@ -509,10 +520,10 @@ class SessionApiCore(QtCore.QObject):
                 clip = self.__session.get_clip(clip_id)
                 clip.set_attr_value("play_order", play_order + 1)
 
-        self.__update_current_clip()
         for playlist_id in to_delete.keys():
             self.SIG_PLAYLIST_MODIFIED.emit(playlist_id)
 
+        self.__update_current_clip()
         return True
 
     def __update_current_clip(self):
@@ -562,23 +573,22 @@ class SessionApiCore(QtCore.QObject):
         if self.__session.viewport.bg_mode == mode:
             return False
         self.__set_bg_mode(mode)
+        self.__session.viewport.bg_mode = mode
         return True
 
     def __set_bg_mode(self, mode):
         if self.__session.viewport.bg is None:
             return
-        self.__session.viewport.bg_mode = mode
         frame = commands.frame()
+        if mode != 0:
+            self.set_mix_mode(0)
         if mode == 0:
             runtime.eval(
             "require rv_state_mngr;"
             "rv_state_mngr.enable_frame_change_mouse_events();",[])
             if self.__is_wipe_mode():
                 self.__toggle_wipe_mode()
-
-            fg_playlist = self.__session.get_playlist(self.__session.viewport.fg)
-            playlist_node = fg_playlist.get_custom_attr("rv_sequence_group")
-            commands.setViewNode(playlist_node)
+            self.__set_fg_pl_seq_grp_to_view_node()
         elif mode == 1:
             self.__set_bg_mode_wipe()
         elif mode == 2:
@@ -684,6 +694,8 @@ class SessionApiCore(QtCore.QObject):
         commands.setViewNode(view)
 
     def set_mix_mode(self, mode):
+        if self.__session.viewport.mix_mode == mode:
+            return
         self.__set_mix_mode(mode)
         self.__session.viewport.mix_mode = mode
 
@@ -699,6 +711,8 @@ class SessionApiCore(QtCore.QObject):
         }
         if mode not in mode_to_type_map.keys():
             return
+        if mode != 0:
+            self.set_bg_mode(0)
         frame = commands.frame()
         view = "defaultStack"
         fg_playlist = self.__session.get_playlist(self.__session.viewport.fg)
@@ -733,6 +747,7 @@ class SessionApiCore(QtCore.QObject):
             for clip_id in playlist.active_clip_ids]
         playlist_node = playlist.get_custom_attr("rv_sequence_group")
         commands.setNodeInputs(playlist_node, clip_nodes)
+        self.__generate_edl(playlist)
 
     def set_attr_values(self, attr_values):
         num_of_attrs_to_set = len(attr_values)
@@ -743,30 +758,42 @@ class SessionApiCore(QtCore.QObject):
             playlist_id, clip_id, attr_id, value = attr_value
             playlist = self.__session.get_playlist(playlist_id)
             clip = self.__session.get_clip(clip_id)
+            if clip.has_frame_edits() and attr_id == "key_in":
+                print("Can not change Key In. Try again after removing frame edits")
+                continue
+            clip.set_attr_value(attr_id, value)
+
             clip_source_node = clip.get_custom_attr("rv_source_group")
             attr = self.__clip_attr_api.get_attr(attr_id)
-
-            if self.__session.attrs_metadata.is_keyable(attr_id):
-                if attr is not None:
-                    attr._set_value(clip_source_node, value)
+            if attr is None:
+                continue
+            elif self.__session.attrs_metadata.is_keyable(attr_id):
+                attr._set_value(clip_source_node, value)
             else:
-                if attr is not None:
-                    attr.set_value(clip_source_node, value)
-            clip.set_attr_value(attr_id, value)
+                attr.set_value(clip_source_node, value)
+
             attr_values_set.append((playlist_id, clip_id, attr_id, value))
 
-            if attr is not None:
-                if hasattr(attr, "dependent_attr_ids"):
-                    for dependent_attr_id in attr.dependent_attr_ids:
-                        attr = self.__clip_attr_api.get_attr(dependent_attr_id)
-                        value  = attr.get_value(clip_source_node)
-                        attr_values_set.append(
-                            (playlist_id, clip_id, dependent_attr_id, value))
+            if hasattr(attr, "dependent_attr_ids"):
+                for dependent_attr_id in attr.dependent_attr_ids:
+                    attr = self.__clip_attr_api.get_attr(dependent_attr_id)
+                    value  = attr.get_value(clip_source_node)
+                    if value is None:
+                        value = clip.get_attr_value(dependent_attr_id)
+                    attr_values_set.append(
+                        (playlist_id, clip_id, dependent_attr_id, value))
 
             num_of_attrs_set += 1
             self.PRG_SET_ATTR_VALUE.emit(
                 num_of_attrs_set, num_of_attrs_to_set)
         self.PRG_SET_ATTR_VALUES_COMPLETED.emit()
+
+        # timeline update for when frame control attrs change
+        if any(attr_value[0] == self.__session.viewport.fg and \
+            attr_value[2] in ("key_in", "key_out") for attr_value in attr_values):
+            playlist = self.__session.get_playlist(self.__session.viewport.fg)
+            self.__generate_edl(playlist)
+
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values_set)
         return True
 
@@ -862,6 +889,7 @@ class SessionApiCore(QtCore.QObject):
             attr = self.__clip_attr_api.get_attr(attr_id)
             if self.__session.attrs_metadata.is_keyable(attr_id):
                 clip.set_attr_value_at(attr_id, key, value_at)
+
                 attr._set_value(source_node, value_at)
                 attr_value = clip.get_attr_value(attr_id)
                 clip_attr_values.append((playlist_id, clip_id, attr_id, attr_value))
@@ -931,3 +959,188 @@ class SessionApiCore(QtCore.QObject):
 
     def __clip_changed(self, clip_id):
         self.__annotation_api._redraw_ro_annotations(clip_id)
+
+    def edit_frames(self, clip_id, edit, local_frame, num_frames):
+        clip = self.__session.get_clip(clip_id)
+        if not clip:
+            return
+
+        clip.edit_frames(edit, local_frame, num_frames)
+
+        playlist = self.__session.get_playlist(clip.playlist_id)
+        self.__generate_edl(playlist)
+        self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+
+    def reset_frames(self, clip_id):
+        clip = self.__session.get_clip(clip_id)
+        if not clip:
+            return
+
+        if clip.reset_frames():
+            playlist = self.__session.get_playlist(clip.playlist_id)
+            self.__generate_edl(playlist)
+            self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+
+    def has_frame_edits(self, clip_id):
+        clip = self.__session.get_clip(clip_id)
+        if not clip:
+            return False
+
+        return clip.has_frame_edits()
+
+    def __generate_edl(self, playlist):
+        playlist_node = playlist.get_custom_attr("rv_sequence_group")
+        seq_node = extra_commands.nodesInGroupOfType(playlist_node, "RVSequence")[0]
+        seq_node_info = commands.nodeRangeInfo(seq_node)
+
+        if seq_node:
+            new_frame = []
+            new_source = []
+            new_in = []
+            new_out = []
+
+            active_clip_ids = playlist.active_clip_ids
+
+            # Setting EDL - playlist with active clips
+            if active_clip_ids:
+
+                commands.setIntProperty(f"{seq_node}.mode.autoEDL", [0])
+                commands.setIntProperty(f"{seq_node}.mode.useCutInfo", [0])
+
+                accum = 1
+                for idx, clip_id in enumerate(active_clip_ids):
+                    clip = self.__session.get_clip(clip_id)
+                    src_node = clip.get_custom_attr("rv_source_group")
+                    src_info = commands.nodeRangeInfo(src_node)
+
+                    start = src_info.get("start")
+                    end = src_info.get("end")
+                    cutin = src_info.get("cutIn")
+                    cutout = src_info.get("cutOut")
+
+                    clip_start = clip.get_attr_value("media_start_frame")
+                    clip_end = clip.get_attr_value("media_end_frame")
+                    clip_keyin = clip.get_attr_value("key_in")
+                    clip_keyout = clip.get_attr_value("key_out")
+                    # prepare local frame map if not available yet
+                    frame_map = clip.get_local_frame_map()
+
+                    converted_start = 1
+                    converted_end = clip_end - clip_start + 1
+                    converted_keyin = clip_keyin - clip_start + 1
+                    converted_keyout = clip_keyout - clip_start + 1
+
+                    src_frames = clip.get_source_frames()
+
+                    i = 0
+                    n = len(src_frames)
+                    total = n
+
+                    while i < n:
+                        j = i
+
+                        # consecutive
+                        while j + 1 < n and src_frames[j + 1] == src_frames[j] + 1:
+                            j += 1
+                        if j > i:
+                            new_frame.append(accum + i)
+                            new_in.append(src_frames[i])
+                            new_out.append(src_frames[j])
+                            new_source.append(idx)
+                            i = j + 1
+                            continue
+
+                        # repeats
+                        repeat = 1
+                        while j + 1 < n and src_frames[j] == src_frames[j + 1]:
+                            j += 1
+                            repeat += 1
+                        if repeat > 1:
+                            new_frame.append(accum + i)
+                            new_in.append(src_frames[i])
+                            new_out.append(src_frames[i])
+                            new_source.append(idx)
+                            i += repeat
+                            continue
+
+                        # single
+                        new_frame.append(accum + i)
+                        new_in.append(src_frames[i])
+                        new_out.append(src_frames[i])
+                        new_source.append(idx)
+                        i += 1
+
+                    accum += total
+
+
+                # EDL last bound
+                new_frame.append(accum)
+                new_source.append(0)
+                new_in.append(0)
+                new_out.append(0)
+
+                commands.setIntProperty(f"{seq_node}.edl.frame", new_frame, True)
+                commands.setIntProperty(f"{seq_node}.edl.source", new_source, True)
+                commands.setIntProperty(f"{seq_node}.edl.in", new_in, True)
+                commands.setIntProperty(f"{seq_node}.edl.out", new_out, True)
+
+            # Setting EDL - playlist without active clips
+            else:
+                commands.setIntProperty(f"{seq_node}.mode.autoEDL", [1])
+                commands.setIntProperty(f"{seq_node}.mode.useCutInfo", [1])
+                return
+
+            # Setting frame start/end & in/out
+            seq_node_info = commands.nodeRangeInfo(seq_node)
+            seq_start = seq_node_info.get("start")
+            seq_end = seq_node_info.get("end")
+            seq_in = seq_node_info.get("cutIn")
+            seq_out = seq_node_info.get("cutOut")
+
+            if active_clip_ids:
+                current_frame = commands.frame()
+                frame_start = commands.frameStart()
+                frame_end = commands.frameEnd()
+                in_point = commands.inPoint()
+                out_point = commands.outPoint()
+
+                if frame_start != seq_start:
+                    commands.setFrameStart(seq_start)
+
+                if frame_end != seq_end:
+                    commands.setFrameEnd(seq_end)
+
+                if in_point != seq_in:
+                    commands.setInPoint(seq_in)
+
+                if out_point != seq_out:
+                    commands.setOutPoint(seq_out)
+
+    def export(self, path, output_color_space, blocking):
+        if path.endswith(".rv"):
+            commands.saveSession(path, True)
+        else:
+            export_movie = MuSymbol("export_utils.exportMovieOverRange")
+            export_movie(commands.frameStart(), commands.frameEnd(), path, blocking, output_color_space)
+
+    def core_preferences(self):
+        def get_preferences_action(widget=None):
+            if widget is None:
+                app = QtWidgets.QApplication.instance()
+                for widget in app.topLevelWidgets():
+                    action = get_preferences_action(widget)
+                    if action is not None:
+                        return action
+                return None
+            for action in widget.actions():
+                if action.text() == "Preferences...":
+                    return action
+            for child in widget.children():
+                if isinstance(child, QtWidgets.QWidget):
+                    action = get_preferences_action(child)
+                    if action is not None:
+                        return action
+            return None
+        action = get_preferences_action()
+        if action:
+            action.trigger()

@@ -143,7 +143,7 @@ class ViewportApi(QtCore.QObject):
 
     def delete_html_overlays(self, ids:List[str]):
         """
-        Delets the HTML overlays whose ids have been provided.
+        Deletes the HTML overlays whose ids have been provided.
 
         Args:
             ids (List[str]): Ids of HTML overlays.
@@ -153,6 +153,80 @@ class ViewportApi(QtCore.QObject):
             (bool): True if success False otherwise.
         """
         return self.__delegate_mngr.call(self.delete_html_overlays, [ids])
+
+    def create_opengl_overlay(self, recipe: dict) -> str:
+        """
+        Create OpenGL overlay based on provided recipe
+
+        .. code-block:: python
+
+            recipe = {
+                "vertices": [[0,0], [1,1]],
+                "apply_image_transforms": True,
+                "width": 1.0,
+                "color": "#FFFFFF",
+                "dashed": True,
+                "opacity: 1.0,
+                "is_visible": True
+            }
+
+        "vertices" is a list of points in the normalized space [0.0, 1.0]. (0.0, 0.0)
+        is the bottom left corner with respect to the image and (1.0, 1.0) is top
+        right corner with respect to the image. The points are used to draw lines
+        in a loop as an overlay
+
+        "apply_image_transforms" specifies whether the lines need to be transformed
+        alongside the image, e.g. if the image pan x is set to 10, pan the lines by 10
+
+        "width" sets the line width. 1.0 by default
+
+        "color" specifies color of the lines. #FFFFFF by default
+
+        "dashed" sets the line type to dashed. Solid lines are drawn by default
+
+        "opacity" set the opacity of the overlay
+
+        "is_visible" specifies if the lines should be visible or not. Different
+        from opacity since if set to False, lines are not rendered at all
+
+        Args:
+            recipe (Dict): recipe to build an overlay
+
+        Returns:
+            (str): Unique id of the overlay
+        """
+        return self.__delegate_mngr.call(self.create_opengl_overlay, [recipe])
+
+    def set_opengl_overlay(self, id: str, recipe: dict) -> bool:
+        """Set recipe for an existing OpenGL overlay
+
+        Args:
+            id (str): unique id of the overlay
+            recipe (dict): recipe to build an overlay
+
+        Returns:
+            bool: True if successful else False
+        """
+        return self.__delegate_mngr.call(self.set_opengl_overlay, [id, recipe])
+
+    def get_opengl_overlay_ids(self) -> List[str]:
+        """Get a list of ids associated with OpenGL overlays
+
+        Returns:
+            List[str]: List of OpenGL overlay ids
+        """
+        return self.__delegate_mngr.call(self.get_opengl_overlay_ids)
+
+    def delete_opengl_overlays(self, ids: List[str]) -> bool:
+        """Delete provided OpenGL overlays
+
+        Args:
+            ids (List[str]): List of OpenGL ovelray ids to be deleted
+
+        Returns:
+            bool: True if successful else False
+        """
+        return self.__delegate_mngr.call(self.delete_opengl_overlays, [ids])
 
     def set_mask(self, mask:Optional[str])->bool:
         """
@@ -299,7 +373,7 @@ class ViewportApi(QtCore.QObject):
 
     def set_rotation(self, angle:int)->bool:
         """
-        Set the rotation angle of all the media in the viewport. 
+        Set the rotation angle of all the media in the viewport.
         Angle can be anywhere between -360 to +360.
 
         Args:
@@ -498,3 +572,14 @@ class ViewportApi(QtCore.QObject):
         """
         return self.__delegate_mngr.call(
             self.set_cross_hair_cursor, [position])
+
+    def toggle_presentation_mode(self):
+        """Toggles presentation mode.
+
+        Turns on presentation mode if it is currently off, and turns it off
+        if it is currently on.
+
+        Returns:
+            None: This method does not return a value.
+        """
+        return self.__delegate_mngr.call(self.toggle_presentation_mode)

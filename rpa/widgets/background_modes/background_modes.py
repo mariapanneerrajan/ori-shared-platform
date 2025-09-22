@@ -21,6 +21,8 @@ class BackgroundModes(QtCore.QObject):
 
         self.__session_api.delegate_mngr.add_post_delegate(
             self.__session_api.set_bg_mode, self.__bg_mode_changed)
+        self.__session_api.delegate_mngr.add_post_delegate(
+            self.__session_api.set_mix_mode, self.__mix_mode_changed)
 
         self.__session_api.SIG_BG_PLAYLIST_CHANGED.connect(
             self.__bg_playlist_changed)
@@ -37,11 +39,11 @@ class BackgroundModes(QtCore.QObject):
         self.actions.wipe.triggered.connect(self.__toggle_wipe)
         self.actions.swap_background.triggered.connect(self.__swap_background)
 
-        self.actions.none_mix_mode.triggered.connect(lambda state: self.__toggle_mix_mode(state, 0))
-        self.actions.add_mix_mode.triggered.connect(lambda state: self.__toggle_mix_mode(state, 1))
-        self.actions.diff_mix_mode.triggered.connect(lambda state: self.__toggle_mix_mode(state, 2))
-        self.actions.sub_mix_mode.triggered.connect(lambda state: self.__toggle_mix_mode(state, 3))
-        self.actions.over_mix_mode.triggered.connect(lambda state: self.__toggle_mix_mode(state, 4))
+        self.actions.none_mix_mode.triggered.connect(lambda: self.__toggle_mix_mode(0))
+        self.actions.add_mix_mode.triggered.connect(lambda: self.__toggle_mix_mode(1))
+        self.actions.diff_mix_mode.triggered.connect(lambda: self.__toggle_mix_mode(2))
+        self.actions.sub_mix_mode.triggered.connect(lambda: self.__toggle_mix_mode(3))
+        self.actions.over_mix_mode.triggered.connect(lambda: self.__toggle_mix_mode(4))
 
     def __turn_off_background(self):
         self.__session_api.set_bg_playlist(None)
@@ -65,27 +67,31 @@ class BackgroundModes(QtCore.QObject):
         self.__toggle_bg_mode(state, 4)
 
     def __swap_background(self):
+        fg_playlist = self.__session_api.get_fg_playlist()
         self.__session_api.set_fg_playlist(
             self.__session_api.get_bg_playlist())
+        self.__session_api.set_bg_playlist(fg_playlist)
 
     def __bg_mode_changed(self, out:bool, mode:int):
-        self.__uncheck_checkboxes()
+        self.__uncheck_bg_mode_checkboxes()
         if mode > 0:
+            self.actions.none_mix_mode.setChecked(True)
             self.__mode_to_action[mode].setChecked(True)
+
+    def __mix_mode_changed(self, out:bool, mode:int):
+        if mode>0:
+            self.__uncheck_bg_mode_checkboxes()
 
     def __bg_playlist_changed(self, id):
         if id is None:
             self.__enable_actions(False)
-            self.__uncheck_checkboxes()
+            self.__uncheck_bg_mode_checkboxes()
         else:
             self.__enable_actions(True)
             self.__bg_mode_changed(True, self.__session_api.get_bg_mode())
 
-    def __toggle_mix_mode(self, state, mode):
-        if state:
-            self.__session_api.set_mix_mode(mode)
-        else:
-            self.__session_api.set_bg_mode(0)
+    def __toggle_mix_mode(self, mode):
+        self.__session_api.set_mix_mode(mode)
 
     def __enable_actions(self, state):
         for action in [
@@ -95,7 +101,7 @@ class BackgroundModes(QtCore.QObject):
             self.actions.swap_background]:
             action.setEnabled(state)
 
-    def __uncheck_checkboxes(self):
+    def __uncheck_bg_mode_checkboxes(self):
         for action in [
             self.actions.wipe, self.actions.pip,
             self.actions.side_by_side, self.actions.top_to_bottom]:

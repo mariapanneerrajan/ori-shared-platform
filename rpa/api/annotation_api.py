@@ -226,6 +226,21 @@ class AnnotationApi(QtCore.QObject):
         """
         return self.__delegate_mngr.call(self.get_ro_frames, [clip_id])
 
+    def get_ro_note_frames(self, clip_id:str)->List[int]:
+        """
+        Retrieves the frames that contain read-only annotations with notes within
+        a specified clip. These are frames where annotations cannot be modified
+        or erased and are used for viewing only.
+
+        Args:
+            clip_id (str): Id of a clip.
+
+        Returns:
+            list[int] :
+                A list of frame numbers that contain read-only annotations with notes.
+        """
+        return self.__delegate_mngr.call(self.get_ro_note_frames, [clip_id])
+
     def set_rw_annotations(self, annotations:Dict)-> bool:
         """
         Sets the read-write annotations for the clips and their respective frames as

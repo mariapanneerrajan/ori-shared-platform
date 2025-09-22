@@ -42,7 +42,15 @@ class ClipAttrLengthDiff:
         cut_out = end_frame if cut_out == (np.iinfo(np.int32).max) else cut_out
         cut_length = cut_out - cut_in + 1
 
-        length_diff = media_length - cut_length
+        if commands.propertyExists(f"{source_group}_source.custom.keyin") and \
+            commands.propertyExists(f"{source_group}_source.custom.keyout"):
+            cut_in = commands.getIntProperty(f"{source_group}_source.custom.keyin")[0]
+            cut_out = commands.getIntProperty(f"{source_group}_source.custom.keyout")[0]
+            cut_length = cut_out - cut_in + 1
+            length_diff = media_length - cut_length
+        else:
+            length_diff = media_length - cut_length
+        
         return length_diff
 
 

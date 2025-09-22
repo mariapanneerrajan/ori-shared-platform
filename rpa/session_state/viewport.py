@@ -54,6 +54,11 @@ class HtmlOverlay:
     height:float = 500
     bg_opacity:float = 0.0
     is_visible:bool = True
+    use_web_engine:bool = False
+    placement:str = None
+    border_width:float = 0.0
+    border_color:list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
+    border_dashed:bool = False
     __custom_attrs: dict = field(default_factory=dict)
 
     def set_custom_attr(self, attr_id, value):
@@ -84,12 +89,13 @@ class Viewport:
         self.__cross_hair_cursor = None
         seed = os.environ.get("HTML_OVERLAY_UUID_SEED")
         if seed is None: seed = uuid.uuid4().hex
-        self.__html_overlay_uuid_generator = SequentialUUIDGenerator(seed)
+        self.__overlay_uuid_generator = SequentialUUIDGenerator(seed)
         self.__html_overlays = {}
+        self.__opengl_overlays: dict[str, OpenGlOverlay] = {}
         self.__current_clip_geometry = None
 
     def create_html_overlay(self, html_overlay_data):
-        overlay_id = self.__html_overlay_uuid_generator.next_uuid()
+        overlay_id = self.__overlay_uuid_generator.next_uuid()
         self.__html_overlays[overlay_id] = HtmlOverlay(**html_overlay_data)
         return overlay_id
 
@@ -126,6 +132,32 @@ class Viewport:
 
     def delete_html_overlays(self, ids):
         for id in ids: self.__html_overlays.pop(id, None)
+        return True
+
+    def create_opengl_overlay(self, recipe):
+        overlay_id = self.__overlay_uuid_generator.next_uuid()
+        self.__opengl_overlays[overlay_id] = recipe
+        return overlay_id
+
+    def set_opengl_overlay(self, id, recipe):
+        opengl_overlay = self.__opengl_overlays.get(id)
+        if opengl_overlay is None: return False
+        opengl_overlay.update(recipe)
+        self.__opengl_overlays[id] = opengl_overlay
+        return True
+
+    def get_opengl_overlay(self, id):
+        return self.__opengl_overlays[id]
+
+    def get_opengl_overlays(self):
+        return list(self.__opengl_overlays.values())
+
+    def get_opengl_overlay_ids(self):
+        return list(self.__opengl_overlays.keys())
+
+    def delete_opengl_overlays(self, ids):
+        for id in ids:
+            self.__opengl_overlays.pop(id, None)
         return True
 
     @property

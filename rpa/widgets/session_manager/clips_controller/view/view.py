@@ -16,6 +16,7 @@ class Table(QtWidgets.QTableView):
         super().__init__(parent)
 
         self.setSelectionBehavior(QtWidgets.QTableView.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
         self.setWordWrap(True)
@@ -44,25 +45,15 @@ class Table(QtWidgets.QTableView):
     def select_clips(self, clips):
         selection_model = self.selectionModel()
         source_model = self.model().sourceModel()
-
-        current_total = source_model.rowCount()
-        current_selections = []
-        for index in selection_model.selectedRows():
-            mindex = self.model().mapToSource(index)
-            id = source_model.clips[mindex.row()]
-            current_selections.append(id)
-        if current_total == len(current_selections):
-            clips = current_selections
+        old_current_index = selection_model.currentIndex()
 
         selection_model.blockSignals(True)
         selection_model.clearSelection()
 
-        start_index = source_model.index(0, 0)
-        end_index = source_model.index(
-            source_model.rowCount() - 1, source_model.columnCount() - 1)
-        source_model.dataChanged.emit(start_index, end_index, [QtCore.Qt.DisplayRole])
-        for id in clips:
-            row = source_model.clips.index(id)
+        first_selected_model_index = None
+        for clip in clips:
+            row = source_model.clips.index(clip)
+            if row is None: continue
             source_index = source_model.index(row, 0)
             model_index = self.model().mapFromSource(source_index)
             if not model_index:
@@ -70,10 +61,23 @@ class Table(QtWidgets.QTableView):
             selection_model.select(
                 model_index, QtCore.QItemSelectionModel.Select | \
                     QtCore.QItemSelectionModel.Rows)
+            if first_selected_model_index is None:
+                first_selected_model_index = model_index
             source_model.dataChanged.emit(source_index, source_index, [QtCore.Qt.DisplayRole])
+
+        current_model_index = None
+        if old_current_index.row() != -1 and old_current_index.isValid():
+            current_model_index = old_current_index
+        else:
+            current_model_index = first_selected_model_index
+
+        if current_model_index:
+            selection_model.setCurrentIndex(
+                current_model_index, QtCore.QItemSelectionModel.NoUpdate)
+
         selection_model.blockSignals(False)
 
-    def get_selected_indexes(self):
+    def get_selected_rows(self):
         mindexes = self.selectionModel().selectedRows()
         return [mindex.row() for mindex in mindexes]
 

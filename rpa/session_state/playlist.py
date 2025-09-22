@@ -94,11 +94,25 @@ class Playlist:
         self.__clips.update(clips)
 
     def delete_clips(self, ids):
+        max_index = 0
+        clip_ids = list(self.__clips.keys())
+        for index, clip_id in enumerate(clip_ids):
+            if clip_id in ids and index > max_index:
+                max_index = index
+        reverse_index = max_index + 1 - len(clip_ids)
+        reverse_index = min(reverse_index, -1)
+
         for id in ids:
             clip = self.__clips.pop(id)
             clip.delete()
-        self.set_active_clips(
-            list(set(self.__active_clip_ids).difference(set(ids))))
+
+        clip_ids = list(self.__clips.keys())
+        if clip_ids:
+            reverse_index = max(reverse_index, -len(clip_ids))
+            active_clips = [clip_ids[reverse_index]]
+        else:
+            active_clips = []
+        self.set_active_clips(active_clips)
 
     # Playlist Methods
     ##################

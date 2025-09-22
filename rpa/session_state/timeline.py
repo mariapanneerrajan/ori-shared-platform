@@ -43,49 +43,41 @@ class Timeline:
         return self.__current_frame
 
     def set_current_frame(self, frame):
-        if not frame:
+        if frame <= 0:
             return
         self.__current_frame = \
             max(self.__get_start_frame(), min(frame, self.__get_end_frame()))
         return self.__current_frame
 
     def __get_start_frame(self):
-        if not self.__seq_to_clip:
-            return 0
-        else:
+        frame = 0
+        if self.__seq_to_clip:
             frame, _ = next(iter(self.__seq_to_clip.items()))
-            return frame
+        return frame
 
     def __get_end_frame(self):
-        if not self.__seq_to_clip:
-            return 0
-        else:
+        frame = 0
+        if self.__seq_to_clip:
             frame, _ = next(iter(reversed(self.__seq_to_clip.items())))
-            return frame
+        return frame
 
     def get_seq_frames(self, clip_id, frames=None):
         seq_frames = self.__clip_to_seq.get(clip_id)
         if not seq_frames: return []
 
         if frames is None:
-            return list(seq_frames.values())
+            return [(clip_frame, seqs) for clip_frame, seqs in seq_frames.items()]
         else:
-            out = []
-            for frame in frames:
-                out.append(seq_frames.get(frame))
-        return out
+            return [(clip_frame, seqs) for clip_frame, seqs in seq_frames.items() if clip_frame in frames]
 
     def get_clip_frames(self, seq_frames=None):
         if not self.__seq_to_clip:
-            return [0]
+            return []
 
         if seq_frames is None:
             return list(self.__seq_to_clip.values())
         else:
-            out = []
-            for seq_frame in seq_frames:
-                out.append(self.__seq_to_clip.get(seq_frame))
-        return out
+            return [self.__seq_to_clip.get(seq_frame) for seq_frame in seq_frames]
 
     def update(self):
         self.__seq_to_clip.clear()
@@ -98,18 +90,21 @@ class Timeline:
 
         seq_frame = 1
         for clip in clips:
-            key_in = clip.get_attr_value("key_in")
-            key_out = clip.get_attr_value("key_out")
-            key_in = 0 if key_in is None else key_in
-            key_out = 0 if key_out is None else key_out
-            for clip_frame in range(key_in, key_out + 1):
-                self.__seq_to_clip[seq_frame] = (clip.id, clip_frame)
-                self.__clip_to_seq.setdefault(clip.id, {})[clip_frame] = seq_frame
+            local_frame_map = clip.get_local_frame_map()
+            src_frames = clip.get_source_frames()
+
+            for local_frame, clip_frame in local_frame_map.items():
+                src_frame = src_frames[local_frame - 1]
+                self.__seq_to_clip[seq_frame] = (clip.id, clip_frame, local_frame)
+                clip_to_seq = self.__clip_to_seq.setdefault(clip.id, {})
+                clip_to_seq.setdefault(clip_frame, []).append(seq_frame)
                 seq_frame += 1
 
         self.__current_frame = max(
             self.__get_start_frame(),
             min(self.__current_frame, self.__get_end_frame()))
+
+        return True
 
     def set_volume(self, volume):
         self.__audio_state.volume = volume

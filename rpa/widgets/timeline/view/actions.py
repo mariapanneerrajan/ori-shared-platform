@@ -11,8 +11,8 @@ class Actions(QtCore.QObject):
     SIG_PLAY_TOGGLED = QtCore.Signal(bool)
     SIG_PLAY_FORWARDS_TOGGLED = QtCore.Signal(bool)
     SIG_PLAY_BACKWARDS_TOGGLED = QtCore.Signal(bool)
-    SIG_STEP_FORWARDS_TRIGGERED = QtCore.Signal()
-    SIG_STEP_BACKWARDS_TRIGGERED = QtCore.Signal()
+    SIG_STEP_FORWARDS_TRIGGERED = QtCore.Signal(int)
+    SIG_STEP_BACKWARDS_TRIGGERED = QtCore.Signal(int)
     SIG_MUTE_TOGGLED = QtCore.Signal(bool)
     SIG_VOLUME_CHANGED = QtCore.Signal(int)
     SIG_AUDIO_SCRUBBING_TOGGLED = QtCore.Signal(bool)
@@ -27,12 +27,16 @@ class Actions(QtCore.QObject):
         self.step_forward_action = QAction("Step Forward")
         self.step_forward_action.setShortcut(QtGui.QKeySequence("Right"))
         self.step_forward_action.setIcon(self.__step_forward_icon)
-        self.step_forward_action.triggered.connect(self.SIG_STEP_FORWARDS_TRIGGERED.emit)
+        self.step_forward_action.triggered.connect(
+            lambda: self.SIG_STEP_FORWARDS_TRIGGERED.emit(1)
+        )
 
         self.step_backward_action = QAction("Step Backward")
         self.step_backward_action.setShortcut(QtGui.QKeySequence("Left"))
         self.step_backward_action.setIcon(self.__step_backward_icon)
-        self.step_backward_action.triggered.connect(self.SIG_STEP_BACKWARDS_TRIGGERED.emit)
+        self.step_backward_action.triggered.connect(
+            lambda: self.SIG_STEP_FORWARDS_TRIGGERED.emit(-1)
+        )
 
         self.toggle_play_action = QAction("Play", self.__main_window)
         self.toggle_play_action.setShortcut(QtGui.QKeySequence("Space"))

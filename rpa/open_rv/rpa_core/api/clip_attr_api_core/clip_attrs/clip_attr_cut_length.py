@@ -30,15 +30,19 @@ class ClipAttrCutLength:
     def default_value(self):
         return 0
 
-    def get_value(self, source_group:str)->str:
-        smi = commands.sourceMediaInfo(f"{source_group}_source")
-        cut_in = commands.getIntProperty(f"{source_group}_source.cut.in")[0]
-        cut_out = commands.getIntProperty(f"{source_group}_source.cut.out")[0]
-        cut_in = smi.get("startFrame") if cut_in == (np.iinfo(np.int32).max * -1) else cut_in
-        cut_out = smi.get("endFrame") if cut_out == (np.iinfo(np.int32).max) else cut_out
-
-        cut_length = cut_out - cut_in + 1
-        return cut_length
+    def get_value(self, source_group:str)->int:
+        if commands.propertyExists(f"{source_group}_source.custom.keyin") and \
+            commands.propertyExists(f"{source_group}_source.custom.keyout"):
+            cut_in = commands.getIntProperty(f"{source_group}_source.custom.keyin")[0]
+            cut_out = commands.getIntProperty(f"{source_group}_source.custom.keyout")[0]
+            return cut_out - cut_in + 1
+        else:
+            smi = commands.sourceMediaInfo(f"{source_group}_source")
+            cut_in = commands.getIntProperty(f"{source_group}_source.cut.in")[0]
+            cut_out = commands.getIntProperty(f"{source_group}_source.cut.out")[0]
+            cut_in = smi.get("startFrame") if cut_in == (np.iinfo(np.int32).max * -1) else cut_in
+            cut_out = smi.get("endFrame") if cut_out == (np.iinfo(np.int32).max) else cut_out
+            return cut_out - cut_in + 1
 
 
 ClipAttrApiCore.get_instance()._add_attr(ClipAttrCutLength())

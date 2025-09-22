@@ -40,6 +40,7 @@ class Actions(QtCore.QObject):
 
         self.none_mix_mode = QAction("None", parent=self)
         self.none_mix_mode.setCheckable(True)
+        self.none_mix_mode.setChecked(True)
         self.none_mix_mode.setShortcut(QtGui.QKeySequence("Ctrl+Shift+N"))
         self.add_mix_mode = QAction("Add", parent=self)
         self.add_mix_mode.setCheckable(True)
@@ -60,4 +61,4 @@ class Actions(QtCore.QObject):
         mix_mode_action_group.addAction(self.diff_mix_mode)
         mix_mode_action_group.addAction(self.sub_mix_mode)
         mix_mode_action_group.addAction(self.over_mix_mode)
-        mix_mode_action_group.setExclusionPolicy(QActionGroup.ExclusionPolicy.ExclusiveOptional)
+        mix_mode_action_group.setExclusionPolicy(QActionGroup.ExclusionPolicy.Exclusive)

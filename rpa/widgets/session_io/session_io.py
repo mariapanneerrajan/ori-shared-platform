@@ -42,7 +42,8 @@ class SessionIO(QtCore.QObject):
     def actions(self):
         return [self.append_session_action,
                 self.replace_session_action,
-                self.save_session_action]
+                self.save_session_action,
+                self.core_preferences_action]
 
     def __init_actions(self):
         self.append_session_action = QAction("Append Session", parent=self.__main_window)
@@ -57,10 +58,15 @@ class SessionIO(QtCore.QObject):
         self.save_session_action.setStatusTip(
             "Save the current session to a file")
 
+        self.core_preferences_action = QAction("Core Preferences", parent=self.__main_window)
+        self.core_preferences_action.setStatusTip(
+            "Show core preferences window")
+
     def __connect_signals(self):
         self.append_session_action.triggered.connect(self.append_session)
         self.replace_session_action.triggered.connect(self.replace_session)
         self.save_session_action.triggered.connect(self.save_session)
+        self.core_preferences_action.triggered.connect(self.core_preferences)
 
     def override_signal(self, action, handler):
         if action in self.actions:
@@ -123,3 +129,6 @@ class SessionIO(QtCore.QObject):
             filepath += C.OTIO_EXT
 
         self.__otio_writer.write_otio_file(filepath)
+
+    def core_preferences(self):
+        self.__rpa.session_api.core_preferences()
