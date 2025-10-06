@@ -40,12 +40,10 @@ class HeaderView(QtWidgets.QHeaderView):
         self.__clip_attrs_button.clicked.connect(self.__toggle_clip_attrs_menu)
 
         self.__clip_attrs_menu = NoHideTogglableMenu('Columns', self)
-        search_widget_action = SearchLineEditAction(
-            self.__clip_attrs_menu,
-            placeholder_text="Search,..",
-            line_edit_width=100)
-        self.__clip_attrs_menu.addAction(search_widget_action)
-        search_widget_action.SIG_TXT_CHANGED.connect(
+        self.__search_widget_action = SearchLineEditAction(
+            self.__clip_attrs_menu, placeholder_text="Search...")
+        self.__clip_attrs_menu.addAction(self.__search_widget_action)
+        self.__search_widget_action.SIG_TXT_CHANGED.connect(
             self.__clip_attrs_menu.filter_actions)
 
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -100,9 +98,11 @@ class HeaderView(QtWidgets.QHeaderView):
         self.SIG_COLUMN_HIDDEN.emit(column_index, hidden)
 
     def __toggle_clip_attrs_menu(self):
+        self.__search_widget_action.set_text("")
+
         pos = self.__clip_attrs_button.mapToGlobal(
             self.__clip_attrs_button.rect().bottomLeft())
-        self.__clip_attrs_menu.exec_(pos)
+        self.__clip_attrs_menu.popup(pos)
         self.__clip_attrs_menu.show()
 
     def __show_header_context_menu(self, pos):
@@ -137,7 +137,9 @@ class HeaderView(QtWidgets.QHeaderView):
 
         menu.addMenu(self.__clip_attrs_menu)
 
-        menu.exec_(global_pos)
+        self.__search_widget_action.set_text("")
+
+        menu.popup(global_pos)
 
     def __hide_column(self, column):
         column_name = self.model().headerData(column, QtCore.Qt.Horizontal)
@@ -158,16 +160,21 @@ class HeaderView(QtWidgets.QHeaderView):
 class SearchLineEditAction(QtWidgets.QWidgetAction):
     SIG_TXT_CHANGED = QtCore.Signal(str)
 
-    def __init__(self, parent, placeholder_text="", line_edit_width=200):
+    def __init__(self, parent, placeholder_text=""):
         super().__init__(parent)
         self.__line_edit = QtWidgets.QLineEdit(parent)
-        self.__line_edit.setPlaceholderText("Search,..")
-        self.__line_edit.textChanged.connect(self.SIG_TXT_CHANGED)
+        self.__line_edit.setPlaceholderText(placeholder_text)
         self.__line_edit.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.__line_edit.setFocus()
 
+        self.__line_edit.textChanged.connect(self.SIG_TXT_CHANGED)
+
     def createWidget(self, parent):
         return self.__line_edit
+
+    def set_text(self, text:str):
+        self.__line_edit.setText(text)
+
 
 class NoHideTogglableMenu(QtWidgets.QMenu):
     def __init__(self, title:str, parent=None):

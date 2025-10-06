@@ -58,6 +58,7 @@ class ClipsController(QtCore.QObject):
         self.__header_view_pref_cntrlr = HeaderViewPrefCntrlr(self.__header_view)
 
         self.__context_menu = ContextMenu(self.__view.table)
+        self.__context_menu.SIG_CREATE.connect(self.create)
         self.__context_menu.SIG_CUT.connect(self.SIG_CUT)
         self.__context_menu.SIG_COPY.connect(self.SIG_COPY)
         self.__context_menu.SIG_PASTE.connect(self.SIG_PASTE)

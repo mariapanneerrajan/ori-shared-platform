@@ -7,6 +7,7 @@ except ImportError:
 
 
 class ContextMenu(QtWidgets.QMenu):
+    SIG_CREATE = QtCore.Signal()
     SIG_CUT = QtCore.Signal()
     SIG_COPY = QtCore.Signal()
     SIG_PASTE = QtCore.Signal()
@@ -27,54 +28,60 @@ class ContextMenu(QtWidgets.QMenu):
         self.__index = index
 
         self.clear()
-        cut = QAction("Cut", self)
-        cut.setShortcut("Ctrl+X")
-        copy = QAction("Copy", self)
-        copy.setShortcut("Ctrl+C")
-        paste = QAction("Paste", self)
-        paste.setShortcut("Ctrl+V")
-        delete_permanently = QAction("Delete Permanently", self)
-        delete_permanently.setShortcut("Delete")
 
-        move_top = QAction("Move to top", self)
-        move_up = QAction("Move up", self)
-        move_down = QAction("Move down", self)
-        move_bottom = QAction("Move to bottom", self)
+        if self.__index == -1:
+            create = QAction("Create")
+            create.triggered.connect(self.SIG_CREATE)
+            self.addAction(create)
+        else:
+            cut = QAction("Cut", self)
+            cut.setShortcut("Ctrl+X")
+            copy = QAction("Copy", self)
+            copy.setShortcut("Ctrl+C")
+            paste = QAction("Paste", self)
+            paste.setShortcut("Ctrl+V")
+            delete_permanently = QAction("Delete Permanently", self)
+            delete_permanently.setShortcut("Delete")
 
-        # SIGNALS
-        cut.triggered.connect(self.SIG_CUT)
-        copy.triggered.connect(self.SIG_COPY)
-        paste.triggered.connect(self.__paste_clips)
-        delete_permanently.triggered.connect(self.SIG_DELETE_PERMANENTLY)
-        move_top.triggered.connect(self.SIG_MOVE_TOP)
-        move_up.triggered.connect(self.SIG_MOVE_UP)
-        move_down.triggered.connect(self.SIG_MOVE_DOWN)
-        move_bottom.triggered.connect(self.SIG_MOVE_BOTTOM)
+            move_top = QAction("Move to top", self)
+            move_up = QAction("Move up", self)
+            move_down = QAction("Move down", self)
+            move_bottom = QAction("Move to bottom", self)
 
-        self.addAction(cut)
-        self.addAction(copy)
-        self.addAction(paste)
-        self.addSeparator()
-        self.addAction(delete_permanently)
-        self.addSeparator()
-        self.addAction(move_top)
-        self.addAction(move_up)
-        self.addAction(move_down)
-        self.addAction(move_bottom)
-        self.addSeparator()
+            # SIGNALS
+            cut.triggered.connect(self.SIG_CUT)
+            copy.triggered.connect(self.SIG_COPY)
+            paste.triggered.connect(self.__paste_clips)
+            delete_permanently.triggered.connect(self.SIG_DELETE_PERMANENTLY)
+            move_top.triggered.connect(self.SIG_MOVE_TOP)
+            move_up.triggered.connect(self.SIG_MOVE_UP)
+            move_down.triggered.connect(self.SIG_MOVE_DOWN)
+            move_bottom.triggered.connect(self.SIG_MOVE_BOTTOM)
 
-        if self.__injected_obj is not None:
-            for menu in self.__injected_obj.get_menus():
-                if menu is None:
-                    self.addSeparator()
-                    continue
-                self.addMenu(menu)
+            self.addAction(cut)
+            self.addAction(copy)
+            self.addAction(paste)
+            self.addSeparator()
+            self.addAction(delete_permanently)
+            self.addSeparator()
+            self.addAction(move_top)
+            self.addAction(move_up)
+            self.addAction(move_down)
+            self.addAction(move_bottom)
+            self.addSeparator()
 
-            for action in self.__injected_obj.get_actions():
-                if action is None:
-                    self.addSeparator()
-                    continue
-                self.addAction(action)
+            if self.__injected_obj is not None:
+                for menu in self.__injected_obj.get_menus():
+                    if menu is None:
+                        self.addSeparator()
+                        continue
+                    self.addMenu(menu)
+
+                for action in self.__injected_obj.get_actions():
+                    if action is None:
+                        self.addSeparator()
+                        continue
+                    self.addAction(action)
 
         self.exec_(pos)
 

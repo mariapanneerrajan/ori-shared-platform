@@ -77,17 +77,6 @@ class Table(QtWidgets.QTableView):
 
         selection_model.blockSignals(False)
 
-    def get_selected_rows(self):
-        mindexes = self.selectionModel().selectedRows()
-        return [mindex.row() for mindex in mindexes]
-
-    def get_mindex_at_pos(self):
-        pos = self.viewport().mapFromGlobal(QtGui.QCursor.pos())
-        return self.indexAt(pos)
-
-    def get_drop_indicator_pen(self):
-        return QtGui.QPen(QtGui.QColor("snow"), 2, QtCore.Qt.DotLine)
-
     def startDrag(self, supportedActions):
         drag = QtGui.QDrag(self)
         mime_data = self.model().mimeData(self.selectionModel().selectedIndexes())
