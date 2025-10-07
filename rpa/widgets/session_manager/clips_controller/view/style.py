@@ -1,7 +1,7 @@
 try:
-    from PySide2 import QtWidgets
+    from PySide2 import QtCore, QtGui, QtWidgets
 except ImportError:
-    from PySide6 import QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 
 class Style(QtWidgets.QProxyStyle):
     def __init__(self):
@@ -22,8 +22,9 @@ class Style(QtWidgets.QProxyStyle):
             last_rect.setLeft(table_view.viewport().rect().left())
             last_rect.setRight(rect_width)
 
-            selected_rows = sorted(table_view.get_selected_rows())
-            moved_index = table_view.get_mindex_at_pos().row()
+            selected_rows = sorted([mindex.row() for mindex in table_view.selectionModel().selectedRows()])
+            pos = table_view.viewport().mapFromGlobal(QtGui.QCursor.pos())
+            moved_index = table_view.indexAt(pos).row()
 
             offset = 0
             if selected_rows:
@@ -32,7 +33,7 @@ class Style(QtWidgets.QProxyStyle):
             painter.save()
 
             try:
-                painter.setPen(table_view.get_drop_indicator_pen())
+                painter.setPen(QtGui.QPen(QtGui.QColor("snow"), 2, QtCore.Qt.DotLine))
                 if moved_index == -1:
                     painter.drawLine(last_rect.bottomLeft(), last_rect.bottomRight())
                 elif offset < 0:
