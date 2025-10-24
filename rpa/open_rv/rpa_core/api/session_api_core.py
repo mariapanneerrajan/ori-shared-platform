@@ -464,22 +464,73 @@ class SessionApiCore(QtCore.QObject):
         return self.__session.attrs_metadata.get_copy()
 
     def __create_clip_nodes(self, id, path):
+        clip = self.__session.get_clip(id)
+        
         if isinstance(path, list) and len(path) > 1:
             if path[1] == "":
                 path = path[0]
         if isinstance(path, str):
             path = [path]
+        
+        # Create the source group of clip
         source = commands.addSourceVerbose(path)
         source_group = commands.nodeGroup(source)
-        stack_group = commands.newNode(
-        "RVStackGroup", f"{source_group}_stack")
-        commands.setNodeInputs(stack_group, [source_group])
-        clip = self.__session.get_clip(id)
-        clip.set_custom_attr("rv_stack_group", stack_group)
+        prop_util.set_property(f"{source_group}.custom.rpa_clip_id", [id])        
         clip.set_custom_attr("rv_source_group", source_group)
-        prop_util.set_property(f"{source_group}.custom.rpa_clip_id", [id])
+        
+        # stack_group = commands.newNode(
+        # "RVStackGroup", f"{source_group}_stack")
+        # commands.setNodeInputs(stack_group, [source_group])
+        # clip = self.__session.get_clip(id)
+        # clip.set_custom_attr("rv_stack_group", stack_group)
+    
+        # Get the downstream connections before we modify the graph
+        _, downstream = commands.nodeConnections(source_group, False)
+
+        # Create an RVTransform2D node as parent container for programmatic paint
+        # This breaks the direct parent relationship with RVSourceGroup, so annotation
+        # tools won't select the programmatic paint node
+        transform_parent = commands.newNode("RVTransform2D", f"{source_group}_paint_parent")
+        print(f"placeholder_transform_parent: {transform_parent}")
+        commands.setNodeInputs(transform_parent, [source_group])
+        
+        # Try to disable the transform to ensure zero performance overhead
+        # Some node types may not support the node.active property
+        try:
+            if commands.propertyExists(f"{transform_parent}.node.active"):
+                commands.setIntProperty(f"{transform_parent}.node.active", [0], True)
+        except Exception:
+            # If disabling fails, the transform will remain active (identity transform)
+            # which is acceptable as it won't modify the image
+            pass
+        
+        # Create programmatic paint node with disabled transform as parent
+        ro_paint = commands.newNode("RVPaint", f"{source_group}_ro_paint")
+        commands.setNodeInputs(ro_paint, [transform_parent])
+        print(f"ro_paint: {ro_paint}")
+        clip.set_custom_attr("rv_ro_paint", ro_paint)
+        
+        # Create the retime node
+        retime = commands.newNode("RVRetime", f"{source_group}_retime")
+        print(f"retime: {retime}")        
+        clip.set_custom_attr("rv_retime", retime)
+        
+        # Set up the node chain: source_group -> placeholder_transform_parent -> ro_paint_node -> retime_node
+        commands.setNodeInputs(retime, [ro_paint])
+        secondary_transform = commands.newNode("RVTransform2D", f"{source_group}_secondary_transform")
+        print(f"secondary_transform: {secondary_transform}")
+        commands.setNodeInputs(secondary_transform, [retime])
+        clip.set_custom_attr("rv_secondary_transform", secondary_transform)
+
+        # Update all downstream nodes to use the transform node instead of the group
+        for node in downstream:
+            print(f"downstream node: {node}")
+            input_nodes, _ = commands.nodeConnections(node, False)
+            updated = [secondary_transform if name == source_group else name for name in input_nodes]
+            if updated != input_nodes:
+                commands.setNodeInputs(node, updated)
+        
         self.__annotation_api._update_visibility(id)
-        return stack_group, source_group
 
     def __get_attr_values(
         self, clip_ids:List[str], attr_ids:List[str]):
