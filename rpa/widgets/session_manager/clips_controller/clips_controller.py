@@ -12,11 +12,10 @@ from rpa.widgets.session_manager.clips_controller.view.header_view \
     import HeaderView, HeaderViewPrefCntrlr
 import json
 from enum import Enum
-import datetime
-from dataclasses import dataclass
 
 
 PLAY_ORDER_ID = "play_order"
+
 
 class PrefKey(Enum):
     PLUGIN = "playlist_manager"
@@ -40,13 +39,15 @@ class ClipsController(QtCore.QObject):
         self.__config_api = rpa.config_api
         self.__session_api = rpa.session_api
         self.__rpa = rpa
-        self.__active_clips_to_set = []
+        self.__from_sel_change = False
 
         self.__view = View(parent)
         self.__model = Model(rpa)
         self.__model.SIG_MOVE.connect(self.SIG_MOVE)
         self.__view.table.setModel(self.__model.get_proxy_model())
         self.__view.table.selectionModel().selectionChanged.connect(
+            self.__selection_changed)
+        self.__view.table.SIG_EMPTY_SPACE_CLICKED.connect(
             self.__selection_changed)
 
         self.__header_view = HeaderView(QtCore.Qt.Horizontal, self.__view.table)
@@ -160,21 +161,14 @@ class ClipsController(QtCore.QObject):
         if self.__playlist == fg_playlist:
             return
         self.__playlist = fg_playlist
-        active_clips = self.__session_api.get_active_clips(fg_playlist)
-        all_clips = self.__session_api.get_clips(fg_playlist)
         self.__model.update_playlist()
-        if len(active_clips) != len(all_clips):
-            self.__update_selection(self.__playlist)
 
     def __playlist_modified(self, playlist):
+        if self.__from_sel_change:
+            self.__from_sel_change = False
+            return
         if self.__playlist != playlist: return
         self.__model.update_playlist()
-        self.__update_selection(self.__playlist)
-
-    def __update_selection(self, playlist_id):
-        if self.__playlist != playlist_id: return
-        active_clips = self.__session_api.get_active_clips(playlist_id)
-        self.__view.table.select_clips(active_clips)
 
     def __current_clip_changed(self):
         self.__model.update_current_clip_icon()
@@ -185,16 +179,18 @@ class ClipsController(QtCore.QObject):
     def __selection_changed(self):
         ids = []
         if len(self.__model.clips) > 0:
-            if self.__view.table.selectionModel().selectedRows():
-                for index in self.__view.table.selectionModel().selectedRows():
+            selected_rows = self.__view.table.selectionModel().selectedRows()
+            if selected_rows:
+                for index in selected_rows:
                     index = self.__view.table.model().mapToSource(index)
                     id = self.__model.clips[index.row()]
                     ids.append(id)
             else:
                 for row in range(len(self.__model.clips)):
                     ids.append(self.__model.clips[row])
-        self.__active_clips_to_set = ids
+        self.__from_sel_change = True
         self.__session_api.set_active_clips(self.__playlist, ids)
+        self.__model.update_background_role()
 
     def load_preferences(self):
         self.__config_api.beginGroup(PrefKey.PLUGIN.value)

@@ -84,7 +84,11 @@ class TimelineApi(QtCore.QObject):
         """
         Get the frames relative to the current timeline sequence that
         corresponds to the given clip frames. If frames are not given, then
-        all the frames in the current timeline sequence will be returned.
+        all the frames  in the current timeline sequence will be returned.
+        For example: get_seq_frames(clip_id, [1001, 1005]) -> will return
+                     [(1001, [1,2,3,4], 1005, [8])]
+                     The reason 1001, returns  a list of four seq frames, is because
+                     1001 is held for 4 frames (Frame hold).
 
         Args:
             clip_id (str):
@@ -97,7 +101,7 @@ class TimelineApi(QtCore.QObject):
         Returns:
             List[Tuple[int, List[int]]]:
                 List of tuples in which first element in the tuple is the clip frame, and
-                the second element is a list of sequence frames associated with the clip frame
+                the second element is a list of sequence frames associated with the clip frame.
         
         Examples of how the returned list will look like:
 

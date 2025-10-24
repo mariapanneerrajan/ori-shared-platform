@@ -78,25 +78,25 @@ class ContextMenu(QtWidgets.QMenu):
             if self.__injected_obj is not None:
                 for action in self.__injected_obj.get_actions(self.__index):
                     self.addAction(action)
+            self.addAction(paste)
             self.addSeparator()
             if len(names) > 0:
                 self.addMenu(self.__restore_menu)
         else:
-            self.addAction(rename)
-            self.addSeparator()
-            self.addAction(duplicate)
-            self.addAction(cut)
-            self.addAction(copy)
-            self.addAction(paste)
-            self.addSeparator()
-            self.addAction(delete)
-            self.addSeparator()
-
             if self.__injected_obj is not None:
                 for action in self.__injected_obj.get_actions(self.__index):
                     self.addAction(action)
                 for menu in self.__injected_obj.get_menus():
                     self.addMenu(menu)
+            self.addSeparator()
+            self.addAction(rename)
+            self.addSeparator()
+            self.addAction(duplicate)
+            self.addAction(cut)
+            self.addAction(copy)
+            self.addSeparator()
+            self.addAction(delete)
+            self.addSeparator()
 
         self.exec_(pos)
 

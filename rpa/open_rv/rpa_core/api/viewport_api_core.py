@@ -20,6 +20,7 @@ def render_html_to_image(width, height, html):
     doc = QtGui.QTextDocument()
     doc.setHtml(html)
     doc.setTextWidth(width)
+    doc.setDocumentMargin(0)
 
     image = QtGui.QImage(width, height, QtGui.QImage.Format_ARGB32)
     image.fill(QtCore.Qt.transparent)
@@ -524,7 +525,7 @@ class ViewportApiCore(QtCore.QObject):
         smi = rvc.sourceMediaInfo(sources[0])
         return smi["width"], smi["height"]
 
-    def __get_screen_dimensions(self):
+    def get_viewport_dimensions(self):
         return rvc.viewSize()
 
     def get_translation(self):

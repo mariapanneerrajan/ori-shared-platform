@@ -141,7 +141,8 @@ class SessionAutoSaver(QtWidgets.QWidget):
     def __save_session(self):
         is_playing, _ = self.__rpa.timeline_api.get_playing_state()
         if not is_playing:
-            self.__otio_writer.write_otio_file(self.__auto_save_file)
+            playlist_ids = self.__rpa.session_api.get_playlists()
+            self.__otio_writer.write_to_file(playlist_ids, self.__auto_save_file)
             current_time = datetime.now().strftime("%H:%M:%S")
             self.__last_saved_line_edit.setText(current_time)
 

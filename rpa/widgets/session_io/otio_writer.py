@@ -14,10 +14,9 @@ class OTIOWriter(object):
         self.__feedback = feedback
         self.__status_bar = main_window.statusBar()
 
-    def write_otio_file(self, file_path:str):
+    def __get_timeline(self, playlist_ids):
         timeline = otio.schema.Timeline()
 
-        playlist_ids = self.__session_api.get_playlists()
         for playlist_id in playlist_ids:
             track = self.__create_otio_track(playlist_id)
 
@@ -27,7 +26,10 @@ class OTIOWriter(object):
                 track.append(clip)
 
             timeline.tracks.append(track)
+        return timeline
 
+    def write_to_file(self, playlist_ids, file_path:str):
+        timeline = self.__get_timeline(playlist_ids)
         timeline.name = os.path.splitext(os.path.basename(file_path))[0]
         success = otio.adapters.write_to_file(timeline, file_path)
         if success:
@@ -36,6 +38,11 @@ class OTIOWriter(object):
             return True
         else:
             return False
+
+    def write_to_string(self, playlist_ids, file_name):
+        timeline = self.__get_timeline(playlist_ids)
+        timeline.name = file_name
+        return otio.adapters.write_to_string(timeline, adapter_name="otio_json")
 
     def __create_otio_track(self, playlist_id:str):
         playlist_name = self.__session_api.get_playlist_name(playlist_id)

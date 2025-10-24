@@ -3,6 +3,7 @@ try:
 except ImportError:
     from PySide6 import QtCore, QtGui, QtWidgets
 
+
 class Style(QtWidgets.QProxyStyle):
     def __init__(self):
         super().__init__()

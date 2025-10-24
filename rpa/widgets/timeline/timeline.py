@@ -470,17 +470,17 @@ class TimelineController(QtWidgets.QToolBar):
                 rw_frames = self.__annotation_api.get_rw_frames(clip_id)
                 rw_seq_frames = self.__timeline_api.get_seq_frames(clip_id, rw_frames)
                 if rw_seq_frames:
-                    annotation_rw_frames = [seqs[0] for _, seqs in rw_seq_frames]
-                
+                    annotation_rw_frames.extend([seqs[0] for _, seqs in rw_seq_frames])
+
                 ro_frames = self.__annotation_api.get_ro_frames(clip_id)
                 ro_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_frames)
                 if ro_seq_frames:
-                    annotation_ro_frames = [seqs[0] for _, seqs in ro_seq_frames]
+                    annotation_ro_frames.extend([seqs[0] for _, seqs in ro_seq_frames])
 
                 ro_note_frames = self.__annotation_api.get_ro_note_frames(clip_id)
                 ro_note_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_note_frames)
                 if ro_note_seq_frames:
-                    annotation_ro_note_frames = [seqs[0] for _, seqs in ro_note_seq_frames]
+                    annotation_ro_note_frames.extend([seqs[0] for _, seqs in ro_note_seq_frames])
 
         self.__slider.set_annotation_rw_keys(annotation_rw_frames)
         self.__slider.set_annotation_ro_keys(annotation_ro_frames)
@@ -503,11 +503,11 @@ class TimelineController(QtWidgets.QToolBar):
                 rw_frames = self.__color_api.get_rw_frames(clip_id)
                 rw_seq_frames = self.__timeline_api.get_seq_frames(clip_id, rw_frames)
                 if rw_seq_frames:
-                    cc_rw_frames = [seqs[0] for _, seqs in rw_seq_frames]
+                    cc_rw_frames.extend([seqs[0] for _, seqs in rw_seq_frames])
                 ro_frames = self.__color_api.get_ro_frames(clip_id)
                 ro_seq_frames = self.__timeline_api.get_seq_frames(clip_id, ro_frames)
                 if ro_seq_frames:
-                    cc_ro_frames = [seqs[0] for _, seqs in ro_seq_frames]
+                    cc_ro_frames.extend([seqs[0] for _, seqs in ro_seq_frames])
 
         self.__slider.set_cc_rw_keys(cc_rw_frames)
         self.__slider.set_cc_ro_keys(cc_ro_frames)

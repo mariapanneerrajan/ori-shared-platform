@@ -119,16 +119,20 @@ class SessionIO(QtCore.QObject):
         if success:
             self.__rpa.session_api.delete_playlists_permanently(playlist_ids)
 
-    def save_session(self):
+    def save(self, playlist_ids):
         filepath = self.__get_filepath_from_dialog(C.SAVE)
 
         if filepath is None:
-            return
+            return False
 
         if not filepath.endswith(C.OTIO_EXT):
             filepath += C.OTIO_EXT
+        self.__otio_writer.write_to_file(playlist_ids, filepath)
+        return filepath
 
-        self.__otio_writer.write_otio_file(filepath)
+    def save_session(self):
+        playlist_ids = self.__rpa.session_api.get_playlists()
+        self.__otio_writer.write_to_file(playlist_ids, filepath)
 
     def core_preferences(self):
         self.__rpa.session_api.core_preferences()

@@ -9,4 +9,4 @@ if [[ "$SCRIPT_DIR" != /spfs* ]]; then
     export RV_SUPPORT_PATH=$PROJ_DIR/local_install/lib/open_rv
 fi
 
-exec "$RV_HOME/bin/rv" "$@"
+exec "$RV_HOME/bin/rv" -flags ModeManagerPreload=ocio_source_setup "$@"

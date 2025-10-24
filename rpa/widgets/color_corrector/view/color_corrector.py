@@ -9,7 +9,7 @@ from rpa.widgets.sub_widgets import mini_label_button
 from rpa.widgets.color_corrector.view.color_knob import ColorKnob
 from rpa.widgets.color_corrector.utils import Slider, SliderAttrs
 from rpa.widgets.color_corrector import constants as C
-from rpa.session_state.color_corrections import ColorTimer, Grade
+from rpa.session_state import color_corrections as CCT
 
 import rpa.widgets.color_corrector.view.resources.resources
 
@@ -190,13 +190,13 @@ class ColorCorrectionAndGrading(QtWidgets.QScrollArea):
 
     def set_node_values(self, index, node):
         node_widget = self.__color_nodes[index]
-        if isinstance(node, ColorTimer):
+        if isinstance(node, CCT.ColorTimer):
             node_widget.set_offset(node.offset)
             node_widget.set_slope(node.slope)
             node_widget.set_power(node.power)
             node_widget.set_sat(node.saturation)
             if not self.__is_read_only: node_widget.set_mute(node.mute)
-        if isinstance(node, Grade):
+        if isinstance(node, CCT.Grade):
             node_widget.set_fstop(node.gain)
             node_widget.set_gamma(node.gamma)
             node_widget.set_blackpoint(node.blackpoint)

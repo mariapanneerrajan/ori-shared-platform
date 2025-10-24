@@ -9,6 +9,7 @@ import rpa.widgets.session_manager.clips_controller.view.resources.resources
 from rpa.widgets.session_manager.clips_controller.view.thumbnail_loader import ThumbnailLoader
 
 
+ACTIVE_CLIPS_ROW_COLOR = (60, 70, 60)
 THUMBNAIL_WIDTH = 90
 THUMBNAIL_HEIGHT = 44
 
@@ -51,6 +52,7 @@ class Model(QtCore.QAbstractTableModel):
         super().__init__(parent)
         self.__session_api = rpa.session_api
         self.__playlist = None
+        self.__active_clips = set()
         self.__proxy_model = None
         self.__thumbnail_loader = ThumbnailLoader()
         self.__clips = DictList([])
@@ -140,6 +142,12 @@ class Model(QtCore.QAbstractTableModel):
         self.__session_api.get_attr_data_type(attr) == "bool":
             return QtCore.Qt.Checked if value is True else QtCore.Qt.Unchecked
 
+        if role == QtCore.Qt.BackgroundRole:
+            if clip in self.__active_clips:
+                return QtGui.QColor(*ACTIVE_CLIPS_ROW_COLOR)
+            else:
+                return None
+
         return None
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
@@ -179,6 +187,8 @@ class Model(QtCore.QAbstractTableModel):
         self.__playlist = self.__session_api.get_fg_playlist()
         clips = self.__session_api.get_clips(self.__playlist)
         self.__clips.reset(clips)
+        self.__active_clips = \
+            set(self.__session_api.get_active_clips(self.__playlist))
         self.endResetModel()
 
     def update_current_clip_icon(self):
@@ -187,6 +197,14 @@ class Model(QtCore.QAbstractTableModel):
         end_index = self.index(self.rowCount()-1, play_order_column)
         self.dataChanged.emit(
             start_index, end_index, [QtCore.Qt.DecorationRole])
+
+    def update_background_role(self):
+        start_index = self.index(0, 0)
+        end_index = self.index(self.rowCount()-1, self.columnCount()-1)
+        self.__active_clips = \
+            set(self.__session_api.get_active_clips(self.__playlist))
+        self.dataChanged.emit(
+            start_index, end_index, [QtCore.Qt.BackgroundRole])
 
     def update_attr_values(self, attr_values):
         for attr_value in attr_values:

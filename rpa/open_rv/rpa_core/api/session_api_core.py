@@ -10,6 +10,7 @@ from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
 from pymu import MuSymbol
 
+
 class SessionApiCore(QtCore.QObject):
     SIG_PLAYLISTS_MODIFIED = QtCore.Signal()
     SIG_PLAYLIST_MODIFIED = QtCore.Signal(str) # playlist_id
@@ -17,10 +18,6 @@ class SessionApiCore(QtCore.QObject):
     SIG_BG_PLAYLIST_CHANGED = QtCore.Signal(object) # playlist_id
     SIG_CURRENT_CLIP_CHANGED = QtCore.Signal(object) # clip_id
     SIG_CLIPS_DELETED = QtCore.Signal(list) # [clip_ids]
-    # This is an internal signal. At the moment, its primary purpose is to
-    # update the timeline state.
-    SIG_ACTIVE_CLIPS_SET = QtCore.Signal(str) # playlist_id
-
 
     _SIG_ATTR_IDS_ADDED = QtCore.Signal(list) # attr_ids
     SIG_ATTR_VALUES_CHANGED = QtCore.Signal(list)
@@ -45,6 +42,7 @@ class SessionApiCore(QtCore.QObject):
         super().__init__()
         self.__session = session
         self.__annotation_api = annotation_api
+        self.__timeline_api = None
         self.__clip_attr_api = ClipAttrApiCore.get_instance()
         self.__clip_attr_api.init(session)
         self.__core_attrs = set()
@@ -317,7 +315,7 @@ class SessionApiCore(QtCore.QObject):
             key_in = clip.get_attr_value("key_in")
             source_node = clip.get_custom_attr("rv_source_group")
             global_frame = \
-                prop_util.convert_to_global_frame(key_in, source_node)
+                prop_util.convert_to_global_frame(key_in, f"{source_node}_source")
             commands.setFrame(global_frame)
 
         playlist = self.__session.get_playlist(self.__session.viewport.fg)
@@ -350,7 +348,9 @@ class SessionApiCore(QtCore.QObject):
                 self.__session.get_playlist(self.__session.viewport.bg))
         self.__update_clip_nodes_in_playlist_node(playlist)
 
-        self.SIG_ACTIVE_CLIPS_SET.emit(playlist_id)
+        if self.__timeline_api:
+            self.__timeline_api._playlist_seq_modified(playlist_id)
+        self.SIG_PLAYLIST_MODIFIED.emit(playlist_id)
         self.__update_current_clip()
         self.__set_current_frame(current_frame)
 
@@ -561,7 +561,7 @@ class SessionApiCore(QtCore.QObject):
         key_in = clip.get_attr_value("key_in")
         source_node = clip.get_custom_attr("rv_source_group")
         global_frame = prop_util.convert_to_global_frame(
-            key_in, source_node)
+            key_in, f"{source_node}_source")
         commands.setFrame(global_frame)
         self.__update_current_clip()
         return True
@@ -1144,3 +1144,6 @@ class SessionApiCore(QtCore.QObject):
         action = get_preferences_action()
         if action:
             action.trigger()
+
+    def set_timeline_api(self, timeline_api):
+        self.__timeline_api = timeline_api

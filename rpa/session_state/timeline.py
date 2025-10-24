@@ -104,6 +104,7 @@ class Timeline:
             self.__get_start_frame(),
             min(self.__current_frame, self.__get_end_frame()))
 
+
         return True
 
     def set_volume(self, volume):

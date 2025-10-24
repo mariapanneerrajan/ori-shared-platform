@@ -72,7 +72,6 @@ class PlaylistsToolbar(QtWidgets.QToolBar):
         self.addAction(clear)
 
         self.addSeparator()
-        self.addSeparator()
 
     def inject_create_btns(
         self, create_btns:List[Union[QtWidgets.QWidget, QAction]]):
@@ -109,3 +108,7 @@ class PlaylistsToolbar(QtWidgets.QToolBar):
             QtWidgets.QMessageBox.No)
         if response == QtWidgets.QMessageBox.Yes:
             self.SIG_CLEAR.emit()
+
+    def inject_button(self, actions: List[Union[QtWidgets.QWidget, QAction]]):
+        for action in actions:
+            self.addAction(action)

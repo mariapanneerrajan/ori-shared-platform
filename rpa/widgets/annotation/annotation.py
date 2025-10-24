@@ -185,6 +185,15 @@ class Annotation(QtCore.QObject):
             self.__rpa.viewport_api.set_feedback_visibility,
             self.__feedback_visibility_delegate)
 
+    def set_pen_color(self, color):
+        r, g, b = color
+        self.__set_color(r, g, b, self.__color.a)
+        self.blockSignals(True)
+        out = self.__color_picker.set_current_color(
+            Rgb(self.__color.r, self.__color.g, self.__color.b))
+        self.__color_picker.set_color_in_use()
+        self.blockSignals(False)
+
     def __set_pen_width(self, width):
         self.__pen_width = width
 
@@ -526,11 +535,10 @@ class Annotation(QtCore.QObject):
 
     def __goto_nearest_feedback_frame(self, forward):
         playlist_id = self.__session_api.get_fg_playlist()
-        playlist_id = self.__session_api.get_fg_playlist()
         clip_id = self.__session_api.get_current_clip()
         if not playlist_id or not clip_id:
             return False
-        current_frame = self.__get_current_clip_frame()
+        current_frame = self.__timeline_api.get_current_frame()
         clip_ids = self.__session_api.get_clips(playlist_id)
         num_of_clips = len(clip_ids)
         def get_unique_values(l1, l2):
@@ -545,28 +553,28 @@ class Annotation(QtCore.QObject):
                         + self.__color_api.get_ro_frames(new_clip_id)
             frames = get_unique_values(annotation_frames, cc_frames)
             if not frames: continue
-            frames = frames if forward else reversed(frames)
             seq_frames = self.__timeline_api.get_seq_frames(new_clip_id, frames)
-            if seq_frames:
-                first_seq_frames_only = [seqs[0] for _, seqs in seq_frames]
-            for frame in first_seq_frames_only:
+            if not seq_frames: continue
+            first_seq_frames_only = [seqs[0] for _, seqs in seq_frames]
+            seq_frames_only = first_seq_frames_only if forward else list(reversed(first_seq_frames_only))
+            for frame in seq_frames_only:
                 if frame == -1:
                     continue
                 if new_clip_id != clip_id:
                     self.__session_api.set_current_clip(new_clip_id)
                     self.__timeline_api.goto_frame(frame)
-                    return False
+                    return
                 if forward:
                     if (ii == 0 and frame > current_frame) \
                             or (ii != 0 and frame < current_frame):
                         self.__timeline_api.goto_frame(frame)
-                        return False
+                        return
                 else:
                     if (ii == 0 and frame < current_frame) \
                             or (ii != 0 and frame > current_frame):
                         self.__timeline_api.goto_frame(frame)
-                        return False
-        return True
+                        return
+        return
 
     def __get_current_clip_frame(self):
         clip_frame = self.__timeline_api.get_clip_frames([self.__timeline_api.get_current_frame()])

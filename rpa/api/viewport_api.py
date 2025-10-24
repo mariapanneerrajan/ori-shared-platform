@@ -573,6 +573,17 @@ class ViewportApi(QtCore.QObject):
         return self.__delegate_mngr.call(
             self.set_cross_hair_cursor, [position])
 
+    def get_viewport_dimensions(self):
+        """
+        Get viewport dimensions
+
+        Returns:
+            (float, float): width and height
+        """
+        return self.__delegate_mngr.call(
+            self.get_viewport_dimensions
+        )
+
     def toggle_presentation_mode(self):
         """Toggles presentation mode.
 
