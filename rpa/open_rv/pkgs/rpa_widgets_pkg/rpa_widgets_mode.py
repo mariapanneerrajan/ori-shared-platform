@@ -307,7 +307,7 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
             if action and action.text() == "File":
                 action.setText("File (rpa)")
                 sub_menu = action.menu()
-                sub_menu.clear()
+                # sub_menu.clear()
 
                 action = QAction("Add Clips", parent=self.__main_window)
                 action.setShortcut("Ctrl+O")
