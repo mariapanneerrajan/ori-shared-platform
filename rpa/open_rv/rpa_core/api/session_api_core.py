@@ -412,12 +412,12 @@ class SessionApiCore(QtCore.QObject):
             clip = self.__session.get_clip(clip_id)
             rv_secondary_transform = clip.get_custom_attr("rv_secondary_transform")
             rv_retime = clip.get_custom_attr("rv_retime")
-            rv_ro_paint = clip.get_custom_attr("rv_ro_paint")   
+            rv_ro_paint = clip.get_custom_attr("rv_ro_paint")
             rv_source_group = clip.get_custom_attr("rv_source_group")
             commands.deleteNode(rv_secondary_transform)
             commands.deleteNode(rv_retime)
             commands.deleteNode(rv_ro_paint)
-            commands.deleteNode(rv_source_group)            
+            commands.deleteNode(rv_source_group)
             num_of_clips_deleted += 1
             self.PRG_CLIP_DELETED.emit(
                 num_of_clips_deleted, num_of_clips_to_delete)
@@ -469,19 +469,26 @@ class SessionApiCore(QtCore.QObject):
 
     def __create_clip_nodes(self, id, path):
         clip = self.__session.get_clip(id)
-        
+
         if isinstance(path, list) and len(path) > 1:
             if path[1] == "":
                 path = path[0]
         if isinstance(path, str):
             path = [path]
-        
+
+        # Save the current cache mode and turn caching OFF during
+        # graph modification. This prevents OpenRv from trying to
+        # evaluate/cache media while we're still building the node
+        # pipeline
+        cache_mode = commands.cacheMode()
+        commands.setCacheMode(commands.CacheOff)
+
         # Create the source group of clip
         source = commands.addSourceVerbose(path)
         source_group = commands.nodeGroup(source)
         prop_util.set_property(f"{source_group}.custom.rpa_clip_id", [id])
         clip.set_custom_attr("rv_source_group", source_group)
-    
+
         # Get the downstream connections before we modify the graph
         _, downstream = commands.nodeConnections(source_group, False)
 
@@ -490,7 +497,7 @@ class SessionApiCore(QtCore.QObject):
         # tools won't select the programmatic paint node
         transform_parent = commands.newNode("RVTransform2D", f"{source_group}_paint_parent")
         commands.setNodeInputs(transform_parent, [source_group])
-        
+
         # Try to disable the transform to ensure zero performance overhead
         # Some node types may not support the node.active property
         try:
@@ -500,16 +507,16 @@ class SessionApiCore(QtCore.QObject):
             # If disabling fails, the transform will remain active (identity transform)
             # which is acceptable as it won't modify the image
             pass
-        
+
         # Create programmatic paint node with disabled transform as parent
         ro_paint = commands.newNode("RVPaint", f"{source_group}_ro_paint")
         commands.setNodeInputs(ro_paint, [transform_parent])
         clip.set_custom_attr("rv_ro_paint", ro_paint)
-        
+
         # Create the retime node
         retime = commands.newNode("RVRetime", f"{source_group}_retime")
         clip.set_custom_attr("rv_retime", retime)
-        
+
         # Set up the node chain: source_group -> placeholder_transform_parent -> ro_paint_node -> retime_node
         commands.setNodeInputs(retime, [ro_paint])
         secondary_transform = commands.newNode("RVTransform2D", f"{source_group}_secondary_transform")
@@ -518,13 +525,16 @@ class SessionApiCore(QtCore.QObject):
         prop_util.set_property(f"{source_group}.custom.secondary_transform", [secondary_transform])
 
         # Update all downstream nodes to use the transform node instead of the group
-        for node in downstream:            
+        for node in downstream:
             input_nodes, _ = commands.nodeConnections(node, False)
             updated = [secondary_transform if name == source_group else name for name in input_nodes]
             if updated != input_nodes:
                 commands.setNodeInputs(node, updated)
-        
+
         self.__annotation_api._update_visibility(id)
+
+        # Always restore the original cache mode.
+        commands.setCacheMode(cache_mode)
 
     def __get_attr_values(
         self, clip_ids:List[str], attr_ids:List[str]):
@@ -765,7 +775,7 @@ class SessionApiCore(QtCore.QObject):
         bg_playlist = self.__session.get_playlist(self.__session.viewport.bg)
         bg_node = bg_playlist.get_custom_attr("rv_sequence_group")
         prop_util.set_property(f'{view}_stack.composite.type', [mode_to_type_map[mode]])
-        
+
         commands.setNodeInputs(view, [fg_node, bg_node])
         commands.setViewNode(view)
         commands.setFrame(frame)
@@ -775,11 +785,11 @@ class SessionApiCore(QtCore.QObject):
 
     def __update_clip_nodes_in_playlist_node(self, playlist):
         clip_nodes = [self.__session.get_clip(clip_id).\
-            get_custom_attr("rv_secondary_transform") \
+            get_custom_attr("rv_source_group") \
             for clip_id in playlist.active_clip_ids]
         playlist_node = playlist.get_custom_attr("rv_sequence_group")
         commands.setNodeInputs(playlist_node, clip_nodes)
-        self.__generate_edl(playlist)
+        # self.__generate_edl(playlist)
 
     def set_attr_values(self, attr_values):
         num_of_attrs_to_set = len(attr_values)
@@ -824,7 +834,7 @@ class SessionApiCore(QtCore.QObject):
         if any(attr_value[0] == self.__session.viewport.fg and \
             attr_value[2] in ("key_in", "key_out") for attr_value in attr_values):
             playlist = self.__session.get_playlist(self.__session.viewport.fg)
-            self.__generate_edl(playlist)
+            # self.__generate_edl(playlist)
 
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values_set)
         return True
@@ -1000,7 +1010,7 @@ class SessionApiCore(QtCore.QObject):
         clip.edit_frames(edit, local_frame, num_frames)
 
         playlist = self.__session.get_playlist(clip.playlist_id)
-        self.__generate_edl(playlist)
+        # self.__generate_edl(playlist)
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
 
     def reset_frames(self, clip_id):
@@ -1010,7 +1020,7 @@ class SessionApiCore(QtCore.QObject):
 
         if clip.reset_frames():
             playlist = self.__session.get_playlist(clip.playlist_id)
-            self.__generate_edl(playlist)
+            # self.__generate_edl(playlist)
             self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
 
     def has_frame_edits(self, clip_id):

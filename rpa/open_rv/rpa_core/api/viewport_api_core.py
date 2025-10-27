@@ -1062,7 +1062,7 @@ class ViewportApiCore(QtCore.QObject):
             return
 
         source = sources[0]
-        source_group = rvc.nodeGroup(source)        
+        source_group = rvc.nodeGroup(source)
         secondary_transform = f"{source_group}_secondary_transform"
         h = rvc.sourceMediaInfo(f"{source}").get("uncropHeight")
 

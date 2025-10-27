@@ -613,7 +613,7 @@ class AnnotationApiCore(QtCore.QObject):
 
     def __get_ro_paint_node(self, clip_id):
         clip = self.__session.get_clip(clip_id)
-        paint_node = clip.get_custom_attr("rv_ro_paint")        
+        paint_node = clip.get_custom_attr("rv_ro_paint")
         return paint_node
 
     def __delete_all_annotations(self, paint_node, frame):
