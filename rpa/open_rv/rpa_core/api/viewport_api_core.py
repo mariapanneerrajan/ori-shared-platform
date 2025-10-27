@@ -1062,9 +1062,8 @@ class ViewportApiCore(QtCore.QObject):
             return
 
         source = sources[0]
-        source_group = rvc.nodeGroup(source)
-        source_tf_node = f"{source_group}_transform2D"
-        stack_tf_node = f"{source_group}_stack_t_{source_group}"
+        source_group = rvc.nodeGroup(source)        
+        secondary_transform = f"{source_group}_secondary_transform"
         h = rvc.sourceMediaInfo(f"{source}").get("uncropHeight")
 
         clip_id = self.__session_api.get_current_clip()
@@ -1084,29 +1083,29 @@ class ViewportApiCore(QtCore.QObject):
 
         if rotation is not None and rotation != "":
             rvc.setFloatProperty(
-                f"{stack_tf_node}.transform.rotate", [float(rotation)])
+                f"{secondary_transform}.transform.rotate", [float(rotation)])
 
         if translate_x is not None and translate_x != "":
             translate_x = prop_util.convert_translate_itview_to_rv(translate_x, h)
-            t_y = rvc.getFloatProperty(f"{stack_tf_node}.transform.translate")[1]
+            t_y = rvc.getFloatProperty(f"{secondary_transform}.transform.translate")[1]
             rvc.setFloatProperty(
-                f"{stack_tf_node}.transform.translate", [float(translate_x), t_y])
+                f"{secondary_transform}.transform.translate", [float(translate_x), t_y])
 
         if translate_y is not None and translate_y != "":
             translate_y = prop_util.convert_translate_itview_to_rv(translate_y, h)
-            t_x = rvc.getFloatProperty(f"{stack_tf_node}.transform.translate")[0]
+            t_x = rvc.getFloatProperty(f"{secondary_transform}.transform.translate")[0]
             rvc.setFloatProperty(
-                f"{stack_tf_node}.transform.translate", [t_x, float(translate_y)])
+                f"{secondary_transform}.transform.translate", [t_x, float(translate_y)])
 
         if scale_x is not None and scale_x != "":
-            s_y = rvc.getFloatProperty(f"{stack_tf_node}.transform.scale")[1]
+            s_y = rvc.getFloatProperty(f"{secondary_transform}.transform.scale")[1]
             rvc.setFloatProperty(
-                f"{stack_tf_node}.transform.scale", [float(scale_x), s_y])
+                f"{secondary_transform}.transform.scale", [float(scale_x), s_y])
 
         if scale_y is not None and scale_y != "":
-            s_x = rvc.getFloatProperty(f"{stack_tf_node}.transform.scale")[0]
+            s_x = rvc.getFloatProperty(f"{secondary_transform}.transform.scale")[0]
             rvc.setFloatProperty(
-                f"{stack_tf_node}.transform.scale", [s_x, float(scale_y)])
+                f"{secondary_transform}.transform.scale", [s_x, float(scale_y)])
 
         self.__frame = frame
 

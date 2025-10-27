@@ -410,10 +410,14 @@ class SessionApiCore(QtCore.QObject):
         self.PRG_CLIPS_DELETION_STARTED.emit(num_of_clips_to_delete)
         for clip_id in clip_ids:
             clip = self.__session.get_clip(clip_id)
-            stack_node = clip.get_custom_attr("rv_stack_group")
-            source_node = clip.get_custom_attr("rv_source_group")
-            commands.deleteNode(stack_node)
-            commands.deleteNode(source_node)
+            rv_secondary_transform = clip.get_custom_attr("rv_secondary_transform")
+            rv_retime = clip.get_custom_attr("rv_retime")
+            rv_ro_paint = clip.get_custom_attr("rv_ro_paint")   
+            rv_source_group = clip.get_custom_attr("rv_source_group")
+            commands.deleteNode(rv_secondary_transform)
+            commands.deleteNode(rv_retime)
+            commands.deleteNode(rv_ro_paint)
+            commands.deleteNode(rv_source_group)            
             num_of_clips_deleted += 1
             self.PRG_CLIP_DELETED.emit(
                 num_of_clips_deleted, num_of_clips_to_delete)
@@ -464,22 +468,63 @@ class SessionApiCore(QtCore.QObject):
         return self.__session.attrs_metadata.get_copy()
 
     def __create_clip_nodes(self, id, path):
+        clip = self.__session.get_clip(id)
+        
         if isinstance(path, list) and len(path) > 1:
             if path[1] == "":
                 path = path[0]
         if isinstance(path, str):
             path = [path]
+        
+        # Create the source group of clip
         source = commands.addSourceVerbose(path)
         source_group = commands.nodeGroup(source)
-        stack_group = commands.newNode(
-        "RVStackGroup", f"{source_group}_stack")
-        commands.setNodeInputs(stack_group, [source_group])
-        clip = self.__session.get_clip(id)
-        clip.set_custom_attr("rv_stack_group", stack_group)
-        clip.set_custom_attr("rv_source_group", source_group)
         prop_util.set_property(f"{source_group}.custom.rpa_clip_id", [id])
+        clip.set_custom_attr("rv_source_group", source_group)
+    
+        # Get the downstream connections before we modify the graph
+        _, downstream = commands.nodeConnections(source_group, False)
+
+        # Create an RVTransform2D node as parent container for programmatic paint
+        # This breaks the direct parent relationship with RVSourceGroup, so annotation
+        # tools won't select the programmatic paint node
+        transform_parent = commands.newNode("RVTransform2D", f"{source_group}_paint_parent")
+        commands.setNodeInputs(transform_parent, [source_group])
+        
+        # Try to disable the transform to ensure zero performance overhead
+        # Some node types may not support the node.active property
+        try:
+            if commands.propertyExists(f"{transform_parent}.node.active"):
+                commands.setIntProperty(f"{transform_parent}.node.active", [0], True)
+        except Exception:
+            # If disabling fails, the transform will remain active (identity transform)
+            # which is acceptable as it won't modify the image
+            pass
+        
+        # Create programmatic paint node with disabled transform as parent
+        ro_paint = commands.newNode("RVPaint", f"{source_group}_ro_paint")
+        commands.setNodeInputs(ro_paint, [transform_parent])
+        clip.set_custom_attr("rv_ro_paint", ro_paint)
+        
+        # Create the retime node
+        retime = commands.newNode("RVRetime", f"{source_group}_retime")
+        clip.set_custom_attr("rv_retime", retime)
+        
+        # Set up the node chain: source_group -> placeholder_transform_parent -> ro_paint_node -> retime_node
+        commands.setNodeInputs(retime, [ro_paint])
+        secondary_transform = commands.newNode("RVTransform2D", f"{source_group}_secondary_transform")
+        commands.setNodeInputs(secondary_transform, [retime])
+        clip.set_custom_attr("rv_secondary_transform", secondary_transform)
+        prop_util.set_property(f"{source_group}.custom.secondary_transform", [secondary_transform])
+
+        # Update all downstream nodes to use the transform node instead of the group
+        for node in downstream:            
+            input_nodes, _ = commands.nodeConnections(node, False)
+            updated = [secondary_transform if name == source_group else name for name in input_nodes]
+            if updated != input_nodes:
+                commands.setNodeInputs(node, updated)
+        
         self.__annotation_api._update_visibility(id)
-        return stack_group, source_group
 
     def __get_attr_values(
         self, clip_ids:List[str], attr_ids:List[str]):
@@ -716,24 +761,11 @@ class SessionApiCore(QtCore.QObject):
         frame = commands.frame()
         view = "defaultStack"
         fg_playlist = self.__session.get_playlist(self.__session.viewport.fg)
-        fg_stack_group_nodes = [self.__session.get_clip(clip_id).get_custom_attr("rv_stack_group")
-                                for clip_id in fg_playlist.active_clip_ids]
-        fg_stack_nodes = [extra_commands.nodesInGroupOfType(stack_group, "RVStack")[0]
-                          for stack_group in fg_stack_group_nodes]
         fg_node = fg_playlist.get_custom_attr("rv_sequence_group")
         bg_playlist = self.__session.get_playlist(self.__session.viewport.bg)
-        bg_stack_group_nodes = [self.__session.get_clip(clip_id).get_custom_attr("rv_stack_group")
-                                for clip_id in bg_playlist.active_clip_ids]
-        bg_stack_nodes = [extra_commands.nodesInGroupOfType(stack_group, "RVStack")[0]
-                          for stack_group in bg_stack_group_nodes]
-
         bg_node = bg_playlist.get_custom_attr("rv_sequence_group")
-
-
-        for node in fg_stack_nodes:
-            prop_util.set_property(f'{node}.composite.type', [mode_to_type_map[mode]])
-        for node in bg_stack_nodes:
-            prop_util.set_property(f'{node}.composite.type', ["over"])
+        prop_util.set_property(f'{view}_stack.composite.type', [mode_to_type_map[mode]])
+        
         commands.setNodeInputs(view, [fg_node, bg_node])
         commands.setViewNode(view)
         commands.setFrame(frame)
@@ -743,7 +775,7 @@ class SessionApiCore(QtCore.QObject):
 
     def __update_clip_nodes_in_playlist_node(self, playlist):
         clip_nodes = [self.__session.get_clip(clip_id).\
-            get_custom_attr("rv_stack_group") \
+            get_custom_attr("rv_secondary_transform") \
             for clip_id in playlist.active_clip_ids]
         playlist_node = playlist.get_custom_attr("rv_sequence_group")
         commands.setNodeInputs(playlist_node, clip_nodes)

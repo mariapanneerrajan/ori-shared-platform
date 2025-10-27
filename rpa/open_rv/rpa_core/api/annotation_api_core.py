@@ -175,7 +175,7 @@ class AnnotationApiCore(QtCore.QObject):
             if not clip: continue
             count = count + 1
             source_node, _ = self.__get_source_and_paint_node(clip_id)
-            _, paint_node = self.__get_stack_and_paint_node(clip_id)
+            paint_node = self.__get_ro_paint_node(clip_id)
             for frame, annotations in frame_annotations.items():
                 clip.annotations.set_ro_annotations(frame, annotations)
                 seq_frame = prop_util.convert_frame(frame, source_node)
@@ -190,7 +190,7 @@ class AnnotationApiCore(QtCore.QObject):
         for index, clip_id in enumerate(clips):
             clip = self.__session.get_clip(clip_id)
             if not clip: continue
-            _, paint_node = self.__get_stack_and_paint_node(clip_id)
+            paint_node = self.__get_ro_paint_node(clip_id)
             source_node, _ = self.__get_source_and_paint_node(clip_id)
             if source_node is None: continue
             for frame in clip.annotations.get_ro_frames():
@@ -288,7 +288,7 @@ class AnnotationApiCore(QtCore.QObject):
         clip = self.__session.get_clip(clip_id)
         if not clip: return
         source_node, _ = self.__get_source_and_paint_node(clip_id)
-        _, paint_node = self.__get_stack_and_paint_node(clip_id)
+        paint_node = self.__get_ro_paint_node(clip_id)
         ro_frames = clip.annotations.get_ro_frames()
         if ro_frames:
             annotations = {}
@@ -611,16 +611,10 @@ class AnnotationApiCore(QtCore.QObject):
         paint_node = rve.associatedNode("RVPaint", source_node)
         return source_node, paint_node
 
-    def __get_stack_and_paint_node(self, clip_id):
+    def __get_ro_paint_node(self, clip_id):
         clip = self.__session.get_clip(clip_id)
-        stack_node = clip.get_custom_attr("rv_stack_group")
-        if not stack_node:
-            return None, None
-        paint_node = rvc.closestNodesOfType("RVPaint", stack_node)
-        if not paint_node:
-            return None, None
-        paint_node = paint_node[0]
-        return stack_node, paint_node
+        paint_node = clip.get_custom_attr("rv_ro_paint")        
+        return paint_node
 
     def __delete_all_annotations(self, paint_node, frame):
         for name in prop_util.get_property(f"{paint_node}.frame:{frame}.order"):
