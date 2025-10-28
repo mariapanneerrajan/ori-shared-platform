@@ -89,12 +89,10 @@ class Timeline:
             clips.append(self.__session.get_clip(clip_id))
 
         seq_frame = 1
-        for clip in clips:
-            local_frame_map = clip.get_local_frame_map()
+        for clip in clips:            
             src_frames = clip.get_source_frames()
 
-            for local_frame, clip_frame in local_frame_map.items():
-                src_frame = src_frames[local_frame - 1]
+            for local_frame, clip_frame in enumerate(src_frames, 1):                
                 self.__seq_to_clip[seq_frame] = (clip.id, clip_frame, local_frame)
                 clip_to_seq = self.__clip_to_seq.setdefault(clip.id, {})
                 clip_to_seq.setdefault(clip_frame, []).append(seq_frame)

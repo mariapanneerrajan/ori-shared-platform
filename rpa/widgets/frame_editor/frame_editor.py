@@ -270,8 +270,9 @@ class FrameEditor(QtWidgets.QWidget):
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            local_frame = current_clip_frame[2]
-            self.__session_api.edit_frames(clip_id, 1, local_frame, hold_value)
+            clip_frame = current_clip_frame[1]
+            print("clip_frame", clip_frame, "hold_value", hold_value)
+            self.__session_api.edit_frames(clip_id, 1, clip_frame, hold_value)
 
     def __drop_frames(self):
         drop_value = self.__drop_spinbox.value()
@@ -281,8 +282,9 @@ class FrameEditor(QtWidgets.QWidget):
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            local_frame = current_clip_frame[2]
-            self.__session_api.edit_frames(clip_id, -1, local_frame, drop_value)
+            clip_frame = current_clip_frame[1]
+            print("clip_frame", clip_frame, "drop_value", drop_value)
+            self.__session_api.edit_frames(clip_id, -1, clip_frame, drop_value)
 
     def reset_frames(self):
         clip_id = self.__session_api.get_current_clip()

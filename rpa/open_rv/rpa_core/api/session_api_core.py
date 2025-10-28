@@ -530,7 +530,9 @@ class SessionApiCore(QtCore.QObject):
             updated = [secondary_transform if name == source_group else name for name in input_nodes]
             if updated != input_nodes:
                 commands.setNodeInputs(node, updated)
-
+        cross_dissolve = commands.newNode(
+            "CrossDissolve", f"{source_group}_cross_dissolve")
+        clip.set_custom_attr("rv_cross_dissolve", cross_dissolve)
         self.__annotation_api._update_visibility(id)
 
         # Always restore the original cache mode.
@@ -1002,26 +1004,37 @@ class SessionApiCore(QtCore.QObject):
     def __clip_changed(self, clip_id):
         self.__annotation_api._redraw_ro_annotations(clip_id)
 
-    def edit_frames(self, clip_id, edit, local_frame, num_frames):
+    def __update_retime_node(self, clip_id):
         clip = self.__session.get_clip(clip_id)
-        if not clip:
-            return
+        source_frames = clip.get_source_frames()
+        retime = clip.get_custom_attr("rv_retime")
+        commands.setIntProperty(
+            f"{retime}.explicit.firstOutputFrame", [source_frames[0]], True
+        )
+        commands.setIntProperty(
+            f"{retime}.explicit.inputFrames", source_frames, True)
 
-        clip.edit_frames(edit, local_frame, num_frames)
+        commands.setIntProperty(f"{retime}.explicit.active", [1], True)
 
-        playlist = self.__session.get_playlist(clip.playlist_id)
-        # self.__generate_edl(playlist)
+    def edit_frames(self, clip_id, edit, clip_frame, num_frames):
+        clip = self.__session.get_clip(clip_id)
+        if not clip: return
+
+        clip.edit_frames(edit, clip_frame, num_frames)
+        self.__update_retime_node(clip_id)
+        
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        return True
 
     def reset_frames(self, clip_id):
         clip = self.__session.get_clip(clip_id)
-        if not clip:
-            return
+        if not clip: return
 
-        if clip.reset_frames():
-            playlist = self.__session.get_playlist(clip.playlist_id)
-            # self.__generate_edl(playlist)
-            self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        clip.reset_frames()
+        self.__update_retime_node(clip_id)
+        
+        self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        return True
 
     def has_frame_edits(self, clip_id):
         clip = self.__session.get_clip(clip_id)

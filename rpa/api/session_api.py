@@ -562,29 +562,29 @@ class SessionApi(QtCore.QObject):
         """
         return self.__delegate_mngr.call(self.set_clip_path, [id, path])
 
-    def edit_frames(self, clip_id:str, edit:int, local_frame:int, num_frames:int):
+    def edit_frames(self, clip_id:str, edit:int, clip_frame:int, num_frames:int):
         """
         Edit frames for a particular clip given the clip_id.
         The type of edit can either be to hold or drop frame(s).
         edit can either be 1 to hold frames or -1 to drop frames.
-        The local_frame refers to the 1-based index or the relative
-        position of the clip frame, within the local sequence of the clip.
-        The local_frame can be obtained from timeline api's get_clip_frames() method.
+        The clip_frame refers to the clip's frame number not the position of
+        the clip frame, within the local sequence of the clip.        
+        The clip_frame can be obtained from timeline api's get_clip_frames() method.
         Lastly, num_frames is used to specify the number of frames to hold or drop.
 
-        Example of hold: edit_frames("clip_id1", 1, 5, 6)
-                         hold the frame at local_frame (index) = 5 for 6 frames
+        Example of hold: edit_frames("clip_id1", 1, 1005, 6)
+                         hold the frame at clip_frame = 1005 for 6 frames
                          (ie. 6 frames added in addition to the original frame)
-        Example of drop: edit_frames("clip_id2", -1, 10, 3)
-                         drop from local_frame (index) = 10 for 3 frames
-                         (ie. frames at position 10, 11, 12 will be dropped)
+        Example of drop: edit_frames("clip_id2", -1, 1010, 3)
+                         drop from clip_frame = 1010 for 3 frames
+                         (ie. frames at frame numbers 1010, 1011, 1012 will be dropped)
 
         Args:
             edit (int): 1 for hold and -1 for drop, any other value will be ignored
-            local_frame (int): 1-based index position of the clip frame within the local clip sequence
+            clip_frame (int): frame number of the clip frame to hold or drop
             num_frames (int): number of frames to hold or drop
         """
-        return self.__delegate_mngr.call(self.edit_frames, [clip_id, edit, local_frame, num_frames])
+        return self.__delegate_mngr.call(self.edit_frames, [clip_id, edit, clip_frame, num_frames])
 
     def reset_frames(self, clip_id:str):
         """

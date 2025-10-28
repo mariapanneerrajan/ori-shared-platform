@@ -17,10 +17,9 @@ class Clip:
         self.__color_corrections = ColorCorrections()
         self.__annotations = Annotations()
 
-        # frame edits
-        self.__local_frame_map = {}
+        # frame edits        
         self.__source_frames = []
-        self.__timewarp_map = {}
+        self.__timewarp_map = {}        
 
     @property
     def id(self):
@@ -52,11 +51,11 @@ class Clip:
         self.__attrs[id] = value
 
         if id in ("key_in", "key_out"):
-            tw_in = self.__attrs.get("timewarp_in")
-            tw_out = self.__attrs.get("timewarp_out")
-            tw_length = self.__attrs.get("timewarp_length")
-            if None in (tw_in, tw_out, tw_length):
-                self.__update_local_frame_map()
+            key_in = self.__attrs.get("key_in")
+            key_out = self.__attrs.get("key_out")
+            if None in (key_in, key_out):
+                return
+            self.__source_frames = list(range(key_in, key_out + 1))
 
     def get_attr_value(self, id):
         return self.__attrs.get(id)
@@ -144,107 +143,24 @@ class Clip:
         else:
             return True
 
-    def edit_frames(self, edit, local_frame, num_frames):
+    def edit_frames(self, edit, clip_frame, num_frames):
         if edit not in (1, -1): return
-        if local_frame <= 0: return
-        if num_frames <= 0: return
-
-        self.edit_local_frame_map(edit, local_frame, num_frames)
-
-    def reset_frames(self):
-        # no need to reset if no changes to frames
-        if self.__local_frame_map == self.get_key_in_out_local_frame_map():
-            return False
-        else:
-            self.__local_frame_map.clear()
-            self.__local_frame_map = self.get_key_in_out_local_frame_map()
-            self.__set_source_frames()
-            self.__set_timewarp_attr_values()
-            return True
-
-    def __update_local_frame_map(self):
-        self.__local_frame_map = self.get_key_in_out_local_frame_map()
-        self.__set_source_frames()
-        self.__set_timewarp_attr_values()
-
-    def edit_local_frame_map(self, edit, local_frame, num_frames):
-        start_frame = self.__attrs.get("media_start_frame")
-        end_frame = self.__attrs.get("media_end_frame")
-        key_in = self.__attrs.get("key_in")
-        key_out = self.__attrs.get("key_out")
-
-        # set default local frame map
-        if not self.__local_frame_map:
-            self.__local_frame_map = self.get_default_local_frame_map()
-
-        clip_frames = list(self.__local_frame_map.values())
-        if local_frame > len(clip_frames):
-            return
-
+        if clip_frame <= 0: return
+        if num_frames <= 0: return        
+                    
         if edit == 1: # hold
-            clip_frame = clip_frames[local_frame - 1]
-            for _ in range(num_frames):
-                clip_frames.insert(local_frame, clip_frame)
+            frame_index = self.__source_frames.index(clip_frame)
+            hold_frames = [clip_frame] * num_frames
+            # Insert values after the current frame using slice assignment
+            self.__source_frames[frame_index + 1:frame_index + 1] = hold_frames
         elif edit == -1: # drop
-            remove = local_frame - 1
-            del clip_frames[remove:remove + num_frames]
-        
-        self.__local_frame_map = {i + 1: frame for i, frame in enumerate(clip_frames)}
-        self.__set_source_frames()
-        self.__set_timewarp_attr_values()
+            frame_index = self.__source_frames.index(clip_frame)
+            del self.__source_frames[frame_index:frame_index + num_frames]
 
-    def get_local_frame_map(self):
-        if not self.__local_frame_map:
-            self.__local_frame_map = self.get_default_local_frame_map()
-            self.__set_source_frames()
-            self.__set_timewarp_attr_values()
-        return self.__local_frame_map
-
-    def get_default_local_frame_map(self):
-        start = self.__attrs.get("media_start_frame")
-        end = self.__attrs.get("media_end_frame")
-
-        if None in (start, end):
-            return {}
-
-        media_length = end - start + 1
-        accum = start
-        
-        default_local_frame_map = {}
-        for i, val in enumerate(range(media_length)):
-            default_local_frame_map[i+1] = accum
-            accum += 1
-        
-        return default_local_frame_map
-
-    def get_key_in_out_local_frame_map(self):
-        start = self.__attrs.get("media_start_frame")
-        end = self.__attrs.get("media_end_frame")
-        key_in = self.__attrs.get("key_in")
-        key_out = self.__attrs.get("key_out")
-
-        if None in (start, end, key_in, key_out):
-            return {}
-
-        frame_map = {}
-        clip_frames = []
-
-        if key_in < start:
-            clip_frames.extend([start] * (start - key_in))
-
-        mid_start = max(start, key_in)
-        mid_end = min(end, key_out)
-        clip_frames.extend(range(mid_start, mid_end + 1))
-
-        if key_out > end:
-            clip_frames.extend([end] * (key_out - end))
-        
-        frame_map = {i+1: frame for i, frame in enumerate(clip_frames)}
-        return frame_map
-
-    def __set_source_frames(self):
-        start = self.__attrs.get("media_start_frame")
-        self.__source_frames = [frame - start + 1 for frame in self.__local_frame_map.values()]
+    def reset_frames(self):        
+        start = self.__attrs.get("key_in")
+        end = self.__attrs.get("key_out")        
+        self.__source_frames = list(range(start, end + 1))        
 
     def get_source_frames(self):
         return self.__source_frames
