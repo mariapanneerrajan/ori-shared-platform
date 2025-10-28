@@ -785,7 +785,7 @@ class SessionApiCore(QtCore.QObject):
 
     def __update_clip_nodes_in_playlist_node(self, playlist):
         clip_nodes = [self.__session.get_clip(clip_id).\
-            get_custom_attr("rv_source_group") \
+            get_custom_attr("rv_secondary_transform") \
             for clip_id in playlist.active_clip_ids]
         playlist_node = playlist.get_custom_attr("rv_sequence_group")
         commands.setNodeInputs(playlist_node, clip_nodes)

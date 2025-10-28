@@ -178,8 +178,7 @@ class AnnotationApiCore(QtCore.QObject):
             paint_node = self.__get_ro_paint_node(clip_id)
             for frame, annotations in frame_annotations.items():
                 clip.annotations.set_ro_annotations(frame, annotations)
-                seq_frame = prop_util.convert_frame(frame, source_node)
-                self.__redraw_annotations(source_node, paint_node, seq_frame, annotations)
+                self.__redraw_annotations(source_node, paint_node, frame, annotations)
             self.PRG_ANNO_LOADED.emit(count, total_clips)
         self.PRG_ANNO_LOADING_COMPLETED.emit()
         self.SIG_MODIFIED.emit()
@@ -194,7 +193,6 @@ class AnnotationApiCore(QtCore.QObject):
             source_node, _ = self.__get_source_and_paint_node(clip_id)
             if source_node is None: continue
             for frame in clip.annotations.get_ro_frames():
-                frame = prop_util.convert_frame(frame, source_node)
                 self.__delete_all_annotations(paint_node, frame)
             clip.annotations.delete_ro()
             self.PRG_ANNO_DELETED.emit(index+1, len(clips))
@@ -311,7 +309,6 @@ class AnnotationApiCore(QtCore.QObject):
                         if self.__session.viewport.feedback.are_texts_visible:
                             name = annotation.get_custom_attr("rv_text")
                             if name: annotation_names.append(name)
-            frame = prop_util.convert_frame(frame, source_node)
             prop = f"{paint_node}.frame:{frame}.order"
             if not rvc.propertyExists(prop):
                 rvc.newProperty(prop, rvc.StringType, len(annotation_names))
@@ -389,10 +386,11 @@ class AnnotationApiCore(QtCore.QObject):
             f"{paint_node}.{name}.brush", [stroke.brush])
         prop_util.set_property(
             f"{paint_node}.{name}.mode", [stroke.mode])
+        points = [itview_to_rv(width, height, *point.__getstate__()) \
+                for point in stroke.points]
         prop_util.set_property(
             f"{paint_node}.{name}.points",
-            [itview_to_rv(width, height, *point.__getstate__()) \
-                for point in stroke.points])
+            points)
 
     def __set_text_properties(self, source_node, paint_node, text):
         smi = rvc.sourceMediaInfo(source_node)
