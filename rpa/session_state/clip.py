@@ -130,56 +130,48 @@ class Clip:
         if not self.__attrs:
             return False
 
-        if not self.__local_frame_map:
-            return False
-        
-        default_local_frame_map = self.get_default_local_frame_map()
-        key_in_out_local_frame_map = self.get_key_in_out_local_frame_map()
+        for index in range(len(self.__source_frames)):
+            if index < len(self.__source_frames) - 2:
+                if self.__source_frames[index] == self.__source_frames[index + 1]:
+                    return True
+        return False
 
-        if self.__local_frame_map == default_local_frame_map:
-            return False
-        elif self.__local_frame_map == key_in_out_local_frame_map:
-            return False
-        else:
-            return True
-
-    def edit_frames(self, edit, clip_frame, num_frames):
-        if edit not in (1, -1): return
-        if clip_frame <= 0: return
-        if num_frames <= 0: return        
+    def edit_frames(self, edit, local_frame, num_frames):        
+        if edit not in (1, -1): return        
+        if local_frame <= 0 or local_frame > len(self.__source_frames): return
+        if num_frames <= 0: return
                     
+        frame_index = local_frame - 1
         if edit == 1: # hold
-            frame_index = self.__source_frames.index(clip_frame)
-            hold_frames = [clip_frame] * num_frames
+            source_frame = self.__source_frames[frame_index]
+            hold_frames = [source_frame] * num_frames
             # Insert values after the current frame using slice assignment
             self.__source_frames[frame_index + 1:frame_index + 1] = hold_frames
-        elif edit == -1: # drop
-            frame_index = self.__source_frames.index(clip_frame)
-            del self.__source_frames[frame_index:frame_index + num_frames]
+        elif edit == -1: # drop            
+            del self.__source_frames[frame_index:frame_index + num_frames]        
+        
+        self.__set_timewarp_attr_values()
 
     def reset_frames(self):        
         start = self.__attrs.get("key_in")
         end = self.__attrs.get("key_out")        
-        self.__source_frames = list(range(start, end + 1))        
+        self.__source_frames = list(range(start, end + 1))
+        
+        self.__set_timewarp_attr_values()
 
     def get_source_frames(self):
         return self.__source_frames
 
     def __set_timewarp_attr_values(self):
         key_in = self.__attrs.get("key_in")
-        if key_in is None:
-            return
+        if key_in is None: return
 
-        if self.has_frame_edits():
-            self.__timewarp_map.clear()
-            for local_frame, clip_frame in self.__local_frame_map.items():
-                self.__timewarp_map[local_frame] = (key_in, clip_frame)
-                key_in += 1
-
-            tw_keys = [tw[0] for tw in self.__timewarp_map.values()]
-            tw_in = tw_keys[0]
-            tw_out = tw_keys[-1]
-            tw_length = len(tw_keys)
+        if self.has_frame_edits():            
+            tw_in = self.__source_frames[0]
+            tw_out = tw_in - 1
+            for _ in self.__source_frames:
+                tw_out += 1
+            tw_length = tw_out - tw_in + 1
         
             self.set_attr_value("timewarp_in", tw_in)
             self.set_attr_value("timewarp_out", tw_out)

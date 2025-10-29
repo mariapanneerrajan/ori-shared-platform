@@ -793,6 +793,36 @@ class SessionApiCore(QtCore.QObject):
         commands.setNodeInputs(playlist_node, clip_nodes)
         # self.__generate_edl(playlist)
 
+    # def __update_clip_nodes_in_playlist_node(self, playlist):
+    #     """
+    #     Update playlist node inputs with clips connected via cross-dissolves.
+    #     Connects clips in reverse order (N-1 to N) using their secondary transform nodes.
+    #     """
+    #     # Get active clip IDs in reverse order for efficient processing
+    #     index = len(playlist.active_clip_ids) - 1
+    #     if index == 0:
+    #         return
+    #     while index >= 0:
+    #         clip_a_id = playlist.active_clip_ids[index - 1]
+    #         clip_b_id = playlist.active_clip_ids[index]
+
+    #         clip_a = self.__session.get_clip(clip_a_id)
+    #         clip_b = self.__session.get_clip(clip_b_id)
+
+    #         clip_a_secondary_transform = clip_a.get_custom_attr("rv_secondary_transform")
+    #         if index == len(playlist.active_clip_ids) - 1:
+    #             clip_b_input = clip_b.get_custom_attr("rv_secondary_transform")
+    #         else:
+    #             clip_b_input = clip_b.get_custom_attr("rv_cross_dissolve")
+    #         cross_dissolve = clip_a.get_custom_attr("rv_cross_dissolve")
+    #         commands.setNodeInputs(cross_dissolve, [clip_a_secondary_transform, clip_b_input])
+
+    #     # Set all inputs to the playlist sequence node
+    #     playlist_node = playlist.get_custom_attr("rv_sequence_group")
+    #     first_clip = self.__session.get_clip(playlist.active_clip_ids[0])
+    #     fist_clip_cross_dissolve = first_clip.get_custom_attr("rv_cross_dissolve")
+    #     commands.setNodeInputs(playlist_node, [fist_clip_cross_dissolve])
+
     def set_attr_values(self, attr_values):
         num_of_attrs_to_set = len(attr_values)
         self.PRG_SET_ATTR_VALUES_STARTED.emit(num_of_attrs_to_set)
@@ -1011,16 +1041,17 @@ class SessionApiCore(QtCore.QObject):
         commands.setIntProperty(
             f"{retime}.explicit.firstOutputFrame", [source_frames[0]], True
         )
+        [1001, 1001, 1001, 1001, 1001, 1001, 1002, 1003, 1003, 1005, 1005, 1005, 1005, 1005]
         commands.setIntProperty(
             f"{retime}.explicit.inputFrames", source_frames, True)
 
         commands.setIntProperty(f"{retime}.explicit.active", [1], True)
 
-    def edit_frames(self, clip_id, edit, clip_frame, num_frames):
+    def edit_frames(self, clip_id, edit, local_frame, num_frames):
         clip = self.__session.get_clip(clip_id)
         if not clip: return
 
-        clip.edit_frames(edit, clip_frame, num_frames)
+        clip.edit_frames(edit, local_frame, num_frames)
         self.__update_retime_node(clip_id)
         
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)

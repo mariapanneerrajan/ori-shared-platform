@@ -270,7 +270,7 @@ class FrameEditor(QtWidgets.QWidget):
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            clip_frame = current_clip_frame[1]
+            clip_frame = current_clip_frame[2]
             print("clip_frame", clip_frame, "hold_value", hold_value)
             self.__session_api.edit_frames(clip_id, 1, clip_frame, hold_value)
 
@@ -282,7 +282,7 @@ class FrameEditor(QtWidgets.QWidget):
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            clip_frame = current_clip_frame[1]
+            clip_frame = current_clip_frame[2]
             print("clip_frame", clip_frame, "drop_value", drop_value)
             self.__session_api.edit_frames(clip_id, -1, clip_frame, drop_value)
 
