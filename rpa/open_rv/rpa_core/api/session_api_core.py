@@ -530,7 +530,9 @@ class SessionApiCore(QtCore.QObject):
             updated = [secondary_transform if name == source_group else name for name in input_nodes]
             if updated != input_nodes:
                 commands.setNodeInputs(node, updated)
-
+        cross_dissolve = commands.newNode(
+            "CrossDissolve", f"{source_group}_cross_dissolve")
+        clip.set_custom_attr("rv_cross_dissolve", cross_dissolve)
         self.__annotation_api._update_visibility(id)
 
         # Always restore the original cache mode.
@@ -789,7 +791,37 @@ class SessionApiCore(QtCore.QObject):
             for clip_id in playlist.active_clip_ids]
         playlist_node = playlist.get_custom_attr("rv_sequence_group")
         commands.setNodeInputs(playlist_node, clip_nodes)
-        # self.__generate_edl(playlist)
+
+    # def __update_clip_nodes_in_playlist_node(self, playlist):
+    #     """
+    #    #TODO: WIP DISSOLVE LOGIC
+    #     Update playlist node inputs with clips connected via cross-dissolves.
+    #     Connects clips in reverse order (N-1 to N) using their secondary transform nodes.
+    #     """
+    #     # Get active clip IDs in reverse order for efficient processing
+    #     index = len(playlist.active_clip_ids) - 1
+    #     if index == 0:
+    #         return
+    #     while index >= 0:
+    #         clip_a_id = playlist.active_clip_ids[index - 1]
+    #         clip_b_id = playlist.active_clip_ids[index]
+
+    #         clip_a = self.__session.get_clip(clip_a_id)
+    #         clip_b = self.__session.get_clip(clip_b_id)
+
+    #         clip_a_secondary_transform = clip_a.get_custom_attr("rv_secondary_transform")
+    #         if index == len(playlist.active_clip_ids) - 1:
+    #             clip_b_input = clip_b.get_custom_attr("rv_secondary_transform")
+    #         else:
+    #             clip_b_input = clip_b.get_custom_attr("rv_cross_dissolve")
+    #         cross_dissolve = clip_a.get_custom_attr("rv_cross_dissolve")
+    #         commands.setNodeInputs(cross_dissolve, [clip_a_secondary_transform, clip_b_input])
+
+    #     # Set all inputs to the playlist sequence node
+    #     playlist_node = playlist.get_custom_attr("rv_sequence_group")
+    #     first_clip = self.__session.get_clip(playlist.active_clip_ids[0])
+    #     fist_clip_cross_dissolve = first_clip.get_custom_attr("rv_cross_dissolve")
+    #     commands.setNodeInputs(playlist_node, [fist_clip_cross_dissolve])
 
     def set_attr_values(self, attr_values):
         num_of_attrs_to_set = len(attr_values)
@@ -800,10 +832,10 @@ class SessionApiCore(QtCore.QObject):
             playlist_id, clip_id, attr_id, value = attr_value
             playlist = self.__session.get_playlist(playlist_id)
             clip = self.__session.get_clip(clip_id)
-            if clip.has_frame_edits() and attr_id == "key_in":
-                print("Can not change Key In. Try again after removing frame edits")
-                continue
+            
             clip.set_attr_value(attr_id, value)
+            if attr_id in ("key_in", "key_out"):
+                self.__update_retime_node(clip_id)
 
             clip_source_node = clip.get_custom_attr("rv_source_group")
             attr = self.__clip_attr_api.get_attr(attr_id)
@@ -1002,161 +1034,44 @@ class SessionApiCore(QtCore.QObject):
     def __clip_changed(self, clip_id):
         self.__annotation_api._redraw_ro_annotations(clip_id)
 
+    def __update_retime_node(self, clip_id):
+        clip = self.__session.get_clip(clip_id)
+        source_frames = clip.get_source_frames()
+        retime = clip.get_custom_attr("rv_retime")
+        commands.setIntProperty(
+            f"{retime}.explicit.firstOutputFrame", [source_frames[0]], True
+        )
+        [1001, 1001, 1001, 1001, 1001, 1001, 1002, 1003, 1003, 1005, 1005, 1005, 1005, 1005]
+        commands.setIntProperty(
+            f"{retime}.explicit.inputFrames", source_frames, True)
+
+        commands.setIntProperty(f"{retime}.explicit.active", [1], True)
+
     def edit_frames(self, clip_id, edit, local_frame, num_frames):
         clip = self.__session.get_clip(clip_id)
-        if not clip:
-            return
+        if not clip: return
 
         clip.edit_frames(edit, local_frame, num_frames)
-
-        playlist = self.__session.get_playlist(clip.playlist_id)
-        # self.__generate_edl(playlist)
+        self.__update_retime_node(clip_id)
+        
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        return True
 
     def reset_frames(self, clip_id):
         clip = self.__session.get_clip(clip_id)
-        if not clip:
-            return
+        if not clip: return
 
-        if clip.reset_frames():
-            playlist = self.__session.get_playlist(clip.playlist_id)
-            # self.__generate_edl(playlist)
-            self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        clip.reset_frames()
+        self.__update_retime_node(clip_id)
+        
+        self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
+        return True
 
-    def has_frame_edits(self, clip_id):
+    def are_frame_edits_allowed(self, clip_id):        
         clip = self.__session.get_clip(clip_id)
         if not clip:
             return False
-
-        return clip.has_frame_edits()
-
-    def __generate_edl(self, playlist):
-        playlist_node = playlist.get_custom_attr("rv_sequence_group")
-        seq_node = extra_commands.nodesInGroupOfType(playlist_node, "RVSequence")[0]
-        seq_node_info = commands.nodeRangeInfo(seq_node)
-
-        if seq_node:
-            new_frame = []
-            new_source = []
-            new_in = []
-            new_out = []
-
-            active_clip_ids = playlist.active_clip_ids
-
-            # Setting EDL - playlist with active clips
-            if active_clip_ids:
-
-                commands.setIntProperty(f"{seq_node}.mode.autoEDL", [0])
-                commands.setIntProperty(f"{seq_node}.mode.useCutInfo", [0])
-
-                accum = 1
-                for idx, clip_id in enumerate(active_clip_ids):
-                    clip = self.__session.get_clip(clip_id)
-                    src_node = clip.get_custom_attr("rv_source_group")
-                    src_info = commands.nodeRangeInfo(src_node)
-
-                    start = src_info.get("start")
-                    end = src_info.get("end")
-                    cutin = src_info.get("cutIn")
-                    cutout = src_info.get("cutOut")
-
-                    clip_start = clip.get_attr_value("media_start_frame")
-                    clip_end = clip.get_attr_value("media_end_frame")
-                    clip_keyin = clip.get_attr_value("key_in")
-                    clip_keyout = clip.get_attr_value("key_out")
-                    # prepare local frame map if not available yet
-                    frame_map = clip.get_local_frame_map()
-
-                    converted_start = 1
-                    converted_end = clip_end - clip_start + 1
-                    converted_keyin = clip_keyin - clip_start + 1
-                    converted_keyout = clip_keyout - clip_start + 1
-
-                    src_frames = clip.get_source_frames()
-
-                    i = 0
-                    n = len(src_frames)
-                    total = n
-
-                    while i < n:
-                        j = i
-
-                        # consecutive
-                        while j + 1 < n and src_frames[j + 1] == src_frames[j] + 1:
-                            j += 1
-                        if j > i:
-                            new_frame.append(accum + i)
-                            new_in.append(src_frames[i])
-                            new_out.append(src_frames[j])
-                            new_source.append(idx)
-                            i = j + 1
-                            continue
-
-                        # repeats
-                        repeat = 1
-                        while j + 1 < n and src_frames[j] == src_frames[j + 1]:
-                            j += 1
-                            repeat += 1
-                        if repeat > 1:
-                            new_frame.append(accum + i)
-                            new_in.append(src_frames[i])
-                            new_out.append(src_frames[i])
-                            new_source.append(idx)
-                            i += repeat
-                            continue
-
-                        # single
-                        new_frame.append(accum + i)
-                        new_in.append(src_frames[i])
-                        new_out.append(src_frames[i])
-                        new_source.append(idx)
-                        i += 1
-
-                    accum += total
-
-
-                # EDL last bound
-                new_frame.append(accum)
-                new_source.append(0)
-                new_in.append(0)
-                new_out.append(0)
-
-                commands.setIntProperty(f"{seq_node}.edl.frame", new_frame, True)
-                commands.setIntProperty(f"{seq_node}.edl.source", new_source, True)
-                commands.setIntProperty(f"{seq_node}.edl.in", new_in, True)
-                commands.setIntProperty(f"{seq_node}.edl.out", new_out, True)
-
-            # Setting EDL - playlist without active clips
-            else:
-                commands.setIntProperty(f"{seq_node}.mode.autoEDL", [1])
-                commands.setIntProperty(f"{seq_node}.mode.useCutInfo", [1])
-                return
-
-            # Setting frame start/end & in/out
-            seq_node_info = commands.nodeRangeInfo(seq_node)
-            seq_start = seq_node_info.get("start")
-            seq_end = seq_node_info.get("end")
-            seq_in = seq_node_info.get("cutIn")
-            seq_out = seq_node_info.get("cutOut")
-
-            if active_clip_ids:
-                current_frame = commands.frame()
-                frame_start = commands.frameStart()
-                frame_end = commands.frameEnd()
-                in_point = commands.inPoint()
-                out_point = commands.outPoint()
-
-                if frame_start != seq_start:
-                    commands.setFrameStart(seq_start)
-
-                if frame_end != seq_end:
-                    commands.setFrameEnd(seq_end)
-
-                if in_point != seq_in:
-                    commands.setInPoint(seq_in)
-
-                if out_point != seq_out:
-                    commands.setOutPoint(seq_out)
+        return clip.are_frame_edits_allowed()
 
     def export(self, path, output_color_space, blocking):
         if path.endswith(".rv"):

@@ -260,32 +260,54 @@ class FrameEditor(QtWidgets.QWidget):
         
         self.__frame_edit.setText(str(frame_edit_value))
         self.__timeline_api.goto_frame(record_frame)
-        
+
+    def __show_frame_edits_not_allowed_message(self):
+        msg_box = QtWidgets.QMessageBox()
+        msg_box.setIcon(QtWidgets.QMessageBox.Warning)
+        msg_box.setWindowTitle("Frame Edits Not Allowed")
+        msg_box.setText(
+            "Frame edits are not allowed for this clip because its key-in and/or key-out points "
+            "have been modified. To use frame hold/drop, reset key-in and key-out to match the clip's "
+            "original Media Start and Media End frames."
+        )
+        msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg_box.exec_()
 
     def __hold_frames(self):
-        hold_value = int(self.__hold_spinbox.value())
         clip_id = self.__session_api.get_current_clip()
+        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+            self.__show_frame_edits_not_allowed_message()
+            return
+        hold_value = int(self.__hold_spinbox.value())
         current_frame = self.__timeline_api.get_current_frame()
 
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            local_frame = current_clip_frame[2]
-            self.__session_api.edit_frames(clip_id, 1, local_frame, hold_value)
+            clip_frame = current_clip_frame[2]
+            print("clip_frame", clip_frame, "hold_value", hold_value)
+            self.__session_api.edit_frames(clip_id, 1, clip_frame, hold_value)
 
     def __drop_frames(self):
-        drop_value = self.__drop_spinbox.value()
         clip_id = self.__session_api.get_current_clip()
+        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+            self.__show_frame_edits_not_allowed_message()
+            return
+        drop_value = self.__drop_spinbox.value()
         current_frame = self.__timeline_api.get_current_frame()
 
         current_clip_frame = self.__timeline_api.get_clip_frames([current_frame])
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
-            local_frame = current_clip_frame[2]
-            self.__session_api.edit_frames(clip_id, -1, local_frame, drop_value)
+            clip_frame = current_clip_frame[2]
+            print("clip_frame", clip_frame, "drop_value", drop_value)
+            self.__session_api.edit_frames(clip_id, -1, clip_frame, drop_value)
 
     def reset_frames(self):
         clip_id = self.__session_api.get_current_clip()
+        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+            self.__show_frame_edits_not_allowed_message()
+            return
         self.__session_api.reset_frames(clip_id)
 
     def __close(self):
