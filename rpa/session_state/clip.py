@@ -17,9 +17,10 @@ class Clip:
         self.__color_corrections = ColorCorrections()
         self.__annotations = Annotations()
 
-        # frame edits        
-        self.__source_frames = []
-        self.__timewarp_map = {}        
+        # frame edits
+        self.__source_frames = []        
+        self.__has_key_in_out_edits = False
+        self.__has_frame_edits = False
 
     @property
     def id(self):
@@ -48,14 +49,80 @@ class Clip:
         return list(self.__custom_attrs.keys())
 
     def set_attr_value(self, id, value):
-        self.__attrs[id] = value
-
         if id in ("key_in", "key_out"):
-            key_in = self.__attrs.get("key_in")
-            key_out = self.__attrs.get("key_out")
-            if None in (key_in, key_out):
-                return
-            self.__source_frames = list(range(key_in, key_out + 1))
+            # This logic is based on the assumption that key_in and key_out
+            # will always be set after media_start_frame and media_end_frame.
+            media_start = self.__attrs.get("media_start_frame")
+            media_end = self.__attrs.get("media_end_frame")            
+            if self.__has_frame_edits:
+                # key_in and key_out can not be changed when frame edits are present
+                if id  == "key_in" and value != media_start:
+                    print("key_in change is not allowed when frame edits are present")
+                    return
+                elif id == "key_out" and value != media_end:
+                    print("key_out change is not allowed when frame edits are present")
+                    return
+            else:
+                key_in = self.__attrs.get("key_in")
+                key_out = self.__attrs.get("key_out")
+                if id == "key_in":
+                    _key_out = media_end if key_out is None else key_out                    
+                    if value > _key_out:
+                        print("key_in is greater than key_out")
+                        return
+                    else:
+                        key_in = value                    
+                elif id == "key_out":                    
+                    _key_in = media_start if key_in is None else key_in
+                    if value < _key_in:
+                        print("key_out is less than key_in")
+                        return
+                    else:
+                        key_out = value
+                self.__attrs[id] = value
+                self.__source_frames.clear()
+                self.__source_frames = self.__generate_clamped_source_frames(
+                    key_in, key_out, media_start, media_end
+                )
+                if key_in != media_start or key_out != media_end:
+                    self.__has_key_in_out_edits = True
+                else:
+                    self.__has_key_in_out_edits = False                
+        else:
+            self.__attrs[id] = value
+
+    def __generate_clamped_source_frames(self, key_in, key_out, media_start, media_end):
+        """
+        Generate source frames list with clamping logic.
+        
+        - Frames before media_start are set to media_start value
+        - Frames within media_start to media_end are incremental
+        - Frames after media_end are set to media_end value
+        
+        Args:
+            key_in: Start frame of the key range
+            key_out: End frame of the key range
+            media_start: First valid media frame
+            media_end: Last valid media frame
+            
+        Returns:
+            List of source frames with clamped values
+        """
+        key_in = media_start if key_in is None else key_in
+        key_out = media_end if key_out is None else key_out
+        source_frames = []
+        for frame in range(key_in, key_out + 1):
+            if frame < media_start:
+                # Repeat media_start for frames before media range
+                source_frames.append(media_start)
+            elif frame > media_end:
+                # Repeat media_end for frames after media range
+                source_frames.append(media_end)
+            else:
+                # Normal incremental value within media range
+                source_frames.append(frame)
+        
+        return source_frames
 
     def get_attr_value(self, id):
         return self.__attrs.get(id)
@@ -126,17 +193,22 @@ class Clip:
 
         self.__attrs[id]["frame_values"] = interpolated_values
 
-    def has_frame_edits(self):
-        if not self.__attrs:
-            return False
+    def are_frame_edits_allowed(self):        
+        return not self.__has_key_in_out_edits
 
+    def __update_has_frame_edits(self):
         for index in range(len(self.__source_frames)):
             if index < len(self.__source_frames) - 2:
                 if self.__source_frames[index] == self.__source_frames[index + 1]:
-                    return True
-        return False
+                    self.__has_frame_edits = True        
+                    return
+        self.__has_frame_edits = False
 
     def edit_frames(self, edit, local_frame, num_frames):        
+        if self.__has_key_in_out_edits:
+            print("frame edits are not allowed when key_in and/or key_out edits are present!")
+            return
+        
         if edit not in (1, -1): return        
         if local_frame <= 0 or local_frame > len(self.__source_frames): return
         if num_frames <= 0: return
@@ -151,22 +223,34 @@ class Clip:
             del self.__source_frames[frame_index:frame_index + num_frames]        
         
         self.__set_timewarp_attr_values()
+        
+        self.__update_has_frame_edits()
+        print("edit has frame edits", self.__has_frame_edits)
 
-    def reset_frames(self):        
-        start = self.__attrs.get("key_in")
-        end = self.__attrs.get("key_out")        
-        self.__source_frames = list(range(start, end + 1))
+    def reset_frames(self):
+        if self.__has_key_in_out_edits:
+            print("reset frame edits are not allowed when key_in and/or key_out edits are present!")
+            return
+        key_in = self.__attrs.get("key_in")
+        key_out = self.__attrs.get("key_out")
+        media_start = self.__attrs.get("media_start_frame")
+        media_end = self.__attrs.get("media_end_frame")
+        self.__source_frames = self.__generate_clamped_source_frames(
+            key_in, key_out, media_start, media_end
+        )
         
         self.__set_timewarp_attr_values()
+        self.__update_has_frame_edits()
+        print("reset has frame edits", self.__has_frame_edits)
 
     def get_source_frames(self):
         return self.__source_frames
-
+    
     def __set_timewarp_attr_values(self):
         key_in = self.__attrs.get("key_in")
         if key_in is None: return
 
-        if self.has_frame_edits():            
+        if self.__has_frame_edits:            
             tw_in = self.__source_frames[0]
             tw_out = tw_in - 1
             for _ in self.__source_frames:

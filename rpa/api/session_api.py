@@ -597,16 +597,15 @@ class SessionApi(QtCore.QObject):
         """
         return self.__delegate_mngr.call(self.reset_frames, [clip_id])
 
-    def has_frame_edits(self, clip_id:str)->bool:
+    def are_frame_edits_allowed(self, clip_id:str)->bool:
         """
-        Returns True if the clip has any frame edits otherwise False
-        The frame edits are confined to frame edits only and excludes key_in and key_out changes.
-        Note: Once clip has any frame edits, clip's key_in attribute can not change.
+        Returns True if frame edits are allowed on the clip, otherwise False.
+        Frame edits are allowed only if key_in and key_out edits are not present.
 
         Returns:
-            (bool): True if clip has frame edits, otherwise False
+            (bool): True if frame edits are allowed, otherwise False
         """
-        return self.__delegate_mngr.call(self.has_frame_edits, [clip_id])
+        return self.__delegate_mngr.call(self.are_frame_edits_allowed, [clip_id])
 
 
     ###########################################################################
