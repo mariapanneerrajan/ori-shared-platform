@@ -53,6 +53,8 @@ class ClipAttrDynamicTranslateX:
                 rvc.setFloatProperty(
                     f"{source_group}_secondary_transform.transform.translate",
                     [converted_value, current_translate_y])
+                return True
+        return False
 
 
 ClipAttrApiCore.get_instance()._add_attr(ClipAttrDynamicTranslateX())

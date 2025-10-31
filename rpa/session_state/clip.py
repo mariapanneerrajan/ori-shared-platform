@@ -87,7 +87,7 @@ class Clip:
                 if key_in != media_start or key_out != media_end:
                     self.__has_key_in_out_edits = True
                 else:
-                    self.__has_key_in_out_edits = False                
+                    self.__has_key_in_out_edits = False        
         else:
             self.__attrs[id] = value
 

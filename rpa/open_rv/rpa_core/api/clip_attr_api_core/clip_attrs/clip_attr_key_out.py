@@ -1,7 +1,7 @@
-import numpy as np
 from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
 from rv import commands
+from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils import get_key_out
 
 
 class ClipAttrKeyOut:
@@ -45,22 +45,7 @@ class ClipAttrKeyOut:
         return True
 
     def get_value(self, source_group:str)->int:
-        cut_out = commands.getIntProperty(f"{source_group}_source.cut.out")[0]
-        smi = commands.sourceMediaInfo(f"{source_group}_source")
-        key_out = smi.get("endFrame") if cut_out == (np.iinfo(np.int32).max) else cut_out
-
-        if not commands.propertyExists(f"{source_group}_source.custom.keyout"):
-            commands.newProperty(f"{source_group}_source.custom.keyout", commands.IntType, 1)
-            commands.setIntProperty(f"{source_group}_source.custom.keyout", [key_out], True)
-            return key_out
-        else:
-            initial_value = commands.getIntProperty(f"{source_group}_source.custom.keyout")
-            end_frame = smi.get("endFrame")
-            if initial_value is None:
-                commands.setIntProperty(f"{source_group}_source.custom.keyout", [end_frame], True)
-
-            key_out = commands.getIntProperty(f"{source_group}_source.custom.keyout")[0]
-            return key_out
+        return get_key_out(source_group)
 
 
 ClipAttrApiCore.get_instance()._add_attr(ClipAttrKeyOut())

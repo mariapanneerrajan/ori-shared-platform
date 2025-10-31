@@ -27,4 +27,6 @@ from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs import \
     clip_attr_translate_x, \
     clip_attr_translate_y, \
     clip_attr_key_in, \
-    clip_attr_key_out
+    clip_attr_key_out, \
+    clip_attr_dissolve_start,\
+    clip_attr_dissolve_length
