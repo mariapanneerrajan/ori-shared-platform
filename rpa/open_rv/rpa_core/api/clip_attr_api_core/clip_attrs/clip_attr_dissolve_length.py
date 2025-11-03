@@ -35,7 +35,13 @@ class ClipAttrDissolveLength:
     def dependent_attr_ids(self):
         return ["dissolve_start"]
 
-    def set_value(self, source_group:str, value:int)->bool:        
+    def set_value(self, source_group:str, value:int)->bool:
+        if value == 0:
+            commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)
+            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)
+            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(0)], True)
+            return True
+        
         key_in = get_key_in(source_group)
         key_out = get_key_out(source_group)
         if value > key_out - key_in + 1:

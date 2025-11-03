@@ -90,7 +90,7 @@ class Timeline:
 
         seq_frame = 1
         for clip in clips:            
-            src_frames = clip.get_source_frames()
+            src_frames = clip.get_timeline_frames()
 
             for local_frame, clip_frame in enumerate(src_frames, 1):
                 self.__seq_to_clip[seq_frame] = (clip.id, clip_frame, local_frame)
