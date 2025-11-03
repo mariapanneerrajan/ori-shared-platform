@@ -47,18 +47,17 @@ class ClipAttrDissolveStart:
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(value - key_in + 1)], True)
         dissolve_length = key_out - value + 1
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(dissolve_length)], True)
+        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [1], True)
         return True
         
     def get_value(self, source_group:str)->int:
         key_in = get_key_in(source_group)
         if not self.__initialized:
-            self.__initialized = True
-            key_out = get_key_out(source_group)
-            value = key_out - key_in + 1
-            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(value)], True)
-            dissolve_length = 1
-            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(dissolve_length)], True)
-            return key_out
+            self.__initialized = True            
+            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)
+            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(0)], True)
+            commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)
+            return 0
         
         value = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame")[0]
         value = key_in + value - 1

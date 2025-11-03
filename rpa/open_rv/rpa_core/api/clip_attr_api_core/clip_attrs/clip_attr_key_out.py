@@ -1,7 +1,8 @@
 from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
 from rv import commands
-from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils import get_key_out
+from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils \
+    import get_key_out, validate_cross_dissolve
 
 
 class ClipAttrKeyOut:
@@ -32,7 +33,7 @@ class ClipAttrKeyOut:
 
     @property
     def dependent_attr_ids(self):
-        return ["cut_length", "length_diff"]
+        return ["cut_length", "length_diff", "dissolve_start", "dissolve_length"]
 
     def set_value(self, source_group:str, value:int)->bool:
         if not isinstance(value, int):
@@ -42,6 +43,8 @@ class ClipAttrKeyOut:
             commands.newProperty(f"{source_group}_source.custom.keyout", commands.IntType, 1)
 
         commands.setIntProperty(f"{source_group}_source.custom.keyout", [value], True)
+
+        validate_cross_dissolve(source_group)
         return True
 
     def get_value(self, source_group:str)->int:

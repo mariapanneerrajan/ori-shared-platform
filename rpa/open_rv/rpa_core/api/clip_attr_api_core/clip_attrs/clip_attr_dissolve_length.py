@@ -48,6 +48,7 @@ class ClipAttrDissolveLength:
         # Clamp dissolve_start not to go below key_in
         dissolve_start = max(dissolve_start, key_in)        
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(float(dissolve_start - key_in + 1))], True)
+        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [1], True)
         return True
         
     def get_value(self, source_group:str)->int:

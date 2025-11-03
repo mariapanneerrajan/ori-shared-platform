@@ -1,7 +1,8 @@
 from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
 from rv import commands
-from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils import get_key_in
+from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils \
+    import get_key_in, validate_cross_dissolve
 
 
 class ClipAttrKeyIn:
@@ -35,6 +36,13 @@ class ClipAttrKeyIn:
         return ["cut_length", "length_diff", "dissolve_start", "dissolve_length"]
 
     def set_value(self, source_group:str, value:int)->bool:
+
+        # dissolve_start = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame")[0]        
+        # print(f"After - dissolve_start: {dissolve_start}")
+
+        # dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
+        # print(f"After - dissolve_length: {dissolve_length}")
+
         if not isinstance(value, int):
             value = self.default_value
 
@@ -43,9 +51,14 @@ class ClipAttrKeyIn:
 
         commands.setIntProperty(f"{source_group}_source.custom.keyin", [value], True)
         
-        # Update dissolve_start and dissolve_length
-        dissolve_start = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame")[0]
-        dissolve_start = value + dissolve_start - 1
+        validate_cross_dissolve(source_group)
+
+        # else:
+        # dissolve_start = key_in + dissolve_start - 1
+        # # print(f"After - dissolve_start: {dissolve_start}")
+
+        # # dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
+        # print(f"After - dissolve_length: {dissolve_length}")
         
         return True
 
