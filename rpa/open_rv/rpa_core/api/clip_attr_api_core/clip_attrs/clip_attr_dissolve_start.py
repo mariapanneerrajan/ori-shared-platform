@@ -6,10 +6,6 @@ from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils import \
 
 class ClipAttrDissolveStart:
 
-    def __init__(self):
-        print("ClipAttrDissolveStart initialized")
-        self.__initialized = False
-
     @property
     def id_(self)->str:
         return "dissolve_start"
@@ -52,14 +48,8 @@ class ClipAttrDissolveStart:
         
     def get_value(self, source_group:str)->int:
         key_in = get_key_in(source_group)
-        if not self.__initialized:
-            self.__initialized = True            
-            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)
-            commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(0)], True)
-            commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)
-            return 0
-        
         value = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame")[0]
+        if value == 0: return 0
         value = key_in + value - 1
         return int(value)
 

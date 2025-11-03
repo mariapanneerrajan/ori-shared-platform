@@ -37,12 +37,6 @@ class ClipAttrKeyIn:
 
     def set_value(self, source_group:str, value:int)->bool:
 
-        # dissolve_start = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame")[0]        
-        # print(f"After - dissolve_start: {dissolve_start}")
-
-        # dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
-        # print(f"After - dissolve_length: {dissolve_length}")
-
         if not isinstance(value, int):
             value = self.default_value
 
@@ -53,13 +47,6 @@ class ClipAttrKeyIn:
         
         validate_cross_dissolve(source_group)
 
-        # else:
-        # dissolve_start = key_in + dissolve_start - 1
-        # # print(f"After - dissolve_start: {dissolve_start}")
-
-        # # dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
-        # print(f"After - dissolve_length: {dissolve_length}")
-        
         return True
 
     def get_value(self, source_group:str)->int:

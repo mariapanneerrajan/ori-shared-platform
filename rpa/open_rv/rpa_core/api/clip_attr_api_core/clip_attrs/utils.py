@@ -46,12 +46,9 @@ def validate_cross_dissolve(source_group:str):
     key_length = key_out - key_in + 1
 
     dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
-    print(f"After - dissolve_length: {dissolve_length}")
-
     if key_length < dissolve_length:            
         # Deactivate the cross dissolve node by setting its 'node.active' property to 0
-        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)
-        
+        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)        
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)        
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(0)], True)
     else:
@@ -59,6 +56,4 @@ def validate_cross_dissolve(source_group:str):
         dissolve_start = key_length - dissolve_length + 1
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(dissolve_start)], True)    
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(dissolve_length)], True)
-        print(f"After - key_length: {key_length}")
-        print(f"After - dissolve_start: {dissolve_start}")
-        print(f"After - dissolve_length: {dissolve_length}")
+    return True
