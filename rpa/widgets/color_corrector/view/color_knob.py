@@ -176,6 +176,7 @@ class ColorKnob(QtWidgets.QWidget):
         """ This sets sliders which has either int/float
         as their value. """
         self.__slider.setValue(value)
+        self.__current_value = value
         if is_default:
             self.__default_value = value
         self.set_default(is_default)
@@ -192,9 +193,9 @@ class ColorKnob(QtWidgets.QWidget):
 
     @property
     def value(self):
-        if self.__current_rgb:
-            return self.__current_rgb
-        return self.__current_value
+        if self.__current_value is not None:
+            return self.__current_value
+        return self.__current_rgb
 
     def __reset_value(self):
         if isinstance(self.__default_value, tuple):

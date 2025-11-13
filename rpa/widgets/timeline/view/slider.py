@@ -673,9 +673,10 @@ class TimelineSlider(QtWidgets.QWidget):
             # and self.__selected_key_set.
             self.__paint_keys(painter, self.__annotation_ro_keys, self.__ro_annotation_frame_color)
             self.__paint_keys(painter, self.__cc_ro_keys, self.__ro_annotation_frame_color)
+            self.__paint_keys(painter, self.__annotation_ro_note_keys, self.__key_frame_color)
             self.__paint_keys(painter, self.__cc_rw_keys, self.__rw_annotation_frame_color)
             self.__paint_keys(painter, self.__annotation_rw_keys, self.__rw_annotation_frame_color)
-            self.__paint_keys(painter, self.__annotation_ro_note_keys, self.__key_frame_color)
+            
             self.__paint_transform_keys(painter)
 
             # Uses self.__timeRange, self.__misc_key_set,

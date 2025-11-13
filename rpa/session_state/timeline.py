@@ -89,7 +89,7 @@ class Timeline:
             clips.append(self.__session.get_clip(clip_id))
 
         seq_frame = 1
-        for clip in clips:            
+        for clip in clips:
             src_frames = clip.get_timeline_frames()
 
             for local_frame, clip_frame in enumerate(src_frames, 1):

@@ -107,6 +107,9 @@ class Controller(QtCore.QObject):
     def tab_widget(self):
         return self.__view.tab_widget
 
+    def inject_footer_buttons(self, buttons:list):
+        self.__view.footer.inject_buttons(buttons)
+
     def __connect_footer_signals(self):
         footer = self.__view.footer
         footer.SIG_COPY_CLICKED.connect(self.__copy_clicked)
@@ -114,8 +117,6 @@ class Controller(QtCore.QObject):
         footer.SIG_MUTE_TAB_CLICKED.connect(self.__mute_tab)
         footer.SIG_MUTE_ALL_TABS_CLICKED.connect(self.__mute_all_tabs)
         footer.SIG_PRINT_CLICKED.connect(self.__print_clicked)
-        footer.SIG_EMAIL_ALL_CLICKED.connect(self.__email_all_clicked)
-        footer.SIG_PUBLISH_CLICKED.connect(self.__publish_clicked)
 
     def __connect_signals(self, tab):
         # Colortimer signals
@@ -286,45 +287,68 @@ class Controller(QtCore.QObject):
         self.__cc_api.mute_all(clip_id, not is_mute_all)
 
     def __print_clicked(self):
-        monitor_data = self.__clip_tab.monitor.get_dict()
-        relative_monitor_data = self.__clip_tab.relative_monitor.get_dict()
-        color_grade_data = self.__clip_tab.color_timer.get_dict()
+        all_tabs = self.tab_widget.get_tabs()
+        clip_tab = self.tab_widget.clip_tab
+        frame_tabs = [tab for tab in all_tabs if tab != clip_tab]
 
-        cc_string = "\nMonitor:"
-        for key in monitor_data:
-            cc_string += "\n\t{0} {1}".format(key, monitor_data[key])
-        cc_string += "\nRelative Clip Monitor:"
-        for key in relative_monitor_data:
-            cc_string += "\n\t{0} {1}".format(key, relative_monitor_data[key])
-        cc_string += "\nClip Color Grade:"
+        cc_string = ""
+        indent = "      "
 
-        frame_tab = self.__view.frame_tab
-        relative_monitor_data = frame_tab.relative_monitor.get_value_dict()
-        color_grade_data = frame_tab.color_timer.get_value_dict()
+        # Clip tab
+        clip_tab_name = clip_tab.name
+        c_nodes = clip_tab.nodes
+        if c_nodes:
+            cc_string += f"\n[{clip_tab_name}]"
+            color_timer, grade = c_nodes
+            color_timer_mute = color_timer.get_mute()
+            color_timer_values = color_timer.get_all()
+            grade_mute = grade.get_mute()
+            grade_values = grade.get_all()
+            cc_string += "\nColorTimer:"
+            cc_string += f"\n{indent}mute: {color_timer_mute}"
+            for color_knob, value in color_timer_values.items():
+                value_str = self.__convert_to_str(value)
+                cc_string += f"\n{indent}{color_knob}: {value_str}"
+            cc_string += "\nGrade:"
+            cc_string += f"\n{indent}mute: {grade_mute}"
+            for color_knob, value in grade_values.items():
+                value_str = self.__convert_to_str(value)
+                cc_string += f"\n{indent}{color_knob}: {value_str}"
 
-        cc_string += "\nRelative Frame Monitor:"
-        for key in relative_monitor_data:
-            cc_string += "\n\t{0} {1}".format(key, relative_monitor_data[key])
-        cc_string += "\nFrame Color Grade:"
-
-        for index in range(self.tab_widget.count()):
-            tab_text = self.tab_widget.tabText(index)
-            if tab_text != "+" and index >= 2:
-                widget = self.tab_widget.widget(index)
-                cc_string += "\n{0} :".format(tab_text)
-                cc_string += "\n\tRelative Region Monitor:"
-                rel_monitor = widget.relative_monitor.get_value_dict()
-                for key in rel_monitor:
-                    cc_string += "\n\t\t{0} {1}".format(key, rel_monitor[key])
-
-                cc_string += "\n\tRegion Color Grade:"
+        # Frame tabs
+        for i, tab in enumerate(frame_tabs):
+            cc_string += f"\n[{tab.name}]"
+            f_region = tab.region
+            f_nodes = tab.nodes
+            if f_region:
+                falloff = f_region.get_falloff()
+                cc_string += "\nRegion:"
+                cc_string += f"\n{indent}Falloff: {falloff}"
+            if f_nodes:
+                color_timer, grade = f_nodes
+                color_timer_mute = color_timer.get_mute()
+                color_timer_values = color_timer.get_all()
+                grade_mute = grade.get_mute()
+                grade_values = grade.get_all()               
+                cc_string += "\nColorTimer:"
+                cc_string += f"\n{indent}mute: {color_timer_mute}"
+                for color_knob, value in color_timer_values.items():
+                    value_str = self.__convert_to_str(value)
+                    cc_string += f"\n{indent}{color_knob}: {value_str}"
+                cc_string += "\nGrade:"
+                cc_string += f"\n{indent}mute: {grade_mute}"
+                for color_knob, value in grade_values.items():
+                    value_str = self.__convert_to_str(value)
+                    cc_string += f"\n{indent}{color_knob}: {value_str}"
+        
         print(cc_string)
 
-    def __email_all_clicked(self):
-        print("Email all clicked")
-
-    def __publish_clicked(self):
-        print("Publish")
+    def __convert_to_str(self, value):
+        if isinstance(value, list):
+            value_str = ' '.join(str(v) for v in value)
+        else:
+            value_str = str(value)
+        return value_str
 
     def __create_colortimer(self, cc_id):
         clip_id = self.__session_api.get_current_clip()

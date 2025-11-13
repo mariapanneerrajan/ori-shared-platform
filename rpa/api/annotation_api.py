@@ -65,9 +65,9 @@ class AnnotationApi(QtCore.QObject):
         return self.__delegate_mngr.call( self.append_transient_point,
             [clip_id, frame, token, stroke_point, is_line])
 
-    def get_transient_stroke(self, clip_id:str, frame:int, token:str):
+    def get_transient_strokes(self, clip_id:str, frame:int, token:str):
         """
-        Retrieves all transient points associated with a specific stroke in
+        Retrieves all transient points associated with specific strokes in
         a given clip and frame.
 
         Args:
@@ -78,11 +78,11 @@ class AnnotationApi(QtCore.QObject):
                 that needs to be retrieved.
 
         Returns:
-            Stroke :
-                The RPA Stroke that is created by means of appending
+            (list[Stroke]) :
+                The list of RPA Stroke that are created by means of appending
                 transient stroke-points.
         """
-        return self.__delegate_mngr.call(self.get_transient_stroke,
+        return self.__delegate_mngr.call(self.get_transient_strokes,
             [clip_id, frame, token])
 
     def delete_transient_points(self, clip_id:str, frame:int, token:str)->bool:

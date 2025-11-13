@@ -59,6 +59,8 @@ class HtmlOverlay:
     border_width:float = 0.0
     border_color:list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     border_dashed:bool = False
+    content_width:object = None
+    content_height:object = None
     __custom_attrs: dict = field(default_factory=dict)
 
     def set_custom_attr(self, attr_id, value):

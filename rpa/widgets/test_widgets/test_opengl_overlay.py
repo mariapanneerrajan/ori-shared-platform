@@ -26,7 +26,7 @@ class HtmlTextureRenderer:
 
     def qimage_to_gl_texture(self, image):
         ptr = image.bits()
-        ptr.setsize(image.byteCount())
+        ptr.setsize(image.sizeInBytes())
         img_array = np.array(ptr).reshape((image.height(), image.width(), 4))
 
         tex_id = glGenTextures(1)

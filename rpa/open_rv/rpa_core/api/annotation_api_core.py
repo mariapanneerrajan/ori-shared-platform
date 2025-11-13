@@ -23,6 +23,10 @@ LASER_TRAIL_DELAY = 0.05
 LASER_TRAIL_MAX_POINTS = 1000
 
 
+def isclose(a, b):
+    return abs(a - b) < 1e-6
+
+
 class AnnotationApiCore(QtCore.QObject):
     SIG_MODIFIED = QtCore.Signal()
 
@@ -65,43 +69,70 @@ class AnnotationApiCore(QtCore.QObject):
         smi = rvc.sourceMediaInfo(source_node)
         width = smi["width"]
         height = smi["height"]
-        name = self.__get_transient_stroke_name(paint_node, frame, token, True)
-        prop_util.set_property(f"{paint_node}.{name}.width", [image_to_rv(width, height, stroke_point.width)])
-        prop_util.set_property(f"{paint_node}.{name}.color", [stroke_point.color.__getstate__()])
-        prop_util.set_property(f"{paint_node}.{name}.brush", [stroke_point.brush])
-        prop_util.set_property(f"{paint_node}.{name}.mode", [stroke_point.mode])
-        prop = f"{paint_node}.{name}.points"
-        point = itview_to_rv(width, height, *(stroke_point.point.__getstate__()))
-        if is_line:
-            if rvc.propertyExists(prop):
-                points = prop_util.get_property(prop)
-                rvc.deleteProperty(prop)
-                prop_util.set_property(prop, [points[0], point])
-            else:
-                prop_util.set_property(prop, [point])
-        else:
-            prop_util.append_property(prop, [point])
-        if name not in prop_util.get_property(f"{paint_node}.frame:{frame}.order"):
+
+        new_width = image_to_rv(width, height, stroke_point.width)
+        new_color = stroke_point.color.__getstate__()
+        new_brush = stroke_point.brush
+        new_mode = stroke_point.mode
+        new_point = itview_to_rv(width, height, *(stroke_point.point.__getstate__()))
+
+        name = self.__get_last_transient_stroke_name(paint_node, frame, token)
+        if name is None:
+            # starting new stroke (regular or line)
+            name = self.__get_next_transient_stroke_name(paint_node, frame, token)
+            prop_util.set_property(f"{paint_node}.{name}.width", [new_width])
+            prop_util.set_property(f"{paint_node}.{name}.color", [new_color])
+            prop_util.set_property(f"{paint_node}.{name}.brush", [new_brush])
+            prop_util.set_property(f"{paint_node}.{name}.mode", [new_mode])
+            prop_util.set_property(f"{paint_node}.{name}.points", [new_point])
             prop_util.append_property(f"{paint_node}.frame:{frame}.order", [name])
+            return True
+
+        if is_line:
+            # continuing line stroke (update width and opacity)
+            prop_util.set_property(f"{paint_node}.{name}.width", [new_width])
+            prop_util.set_property(f"{paint_node}.{name}.color", [new_color])
+            prop = f"{paint_node}.{name}.points"
+            old_points = prop_util.get_property(prop)
+            rvc.deleteProperty(prop)
+            prop_util.set_property(prop, [old_points[0], new_point])
+            return True
+
+        # continuing regular stroke
+        prop_util.append_property(f"{paint_node}.{name}.points", [new_point])
+
+        # if width or opacity changes, start a new stroke
+        old_width = prop_util.get_property(f"{paint_node}.{name}.width")[0]
+        old_color = prop_util.get_property(f"{paint_node}.{name}.color")[0]
+        if not isclose(new_width, old_width) or not isclose(new_color[3], old_color[3]):
+            name = self.__get_next_transient_stroke_name(paint_node, frame, token)
+            prop_util.set_property(f"{paint_node}.{name}.width", [new_width])
+            prop_util.set_property(f"{paint_node}.{name}.color", [new_color])
+            prop_util.set_property(f"{paint_node}.{name}.brush", [new_brush])
+            prop_util.set_property(f"{paint_node}.{name}.mode", [new_mode])
+            prop_util.set_property(f"{paint_node}.{name}.points", [new_point])
+            prop_util.append_property(f"{paint_node}.frame:{frame}.order", [name])
+            return True
+
         return True
 
-    def get_transient_stroke(self, clip_id, frame, token):
+    def get_transient_strokes(self, clip_id, frame, token):
         source_node, paint_node = self.__get_source_and_paint_node(clip_id)
         if None in (source_node, paint_node):
-            return None
-        name = self.__get_transient_stroke_name(paint_node, frame, token)
-        if name is None:
             return None
         smi = rvc.sourceMediaInfo(source_node)
         width = smi["width"]
         height = smi["height"]
-        return Stroke(
-            mode=StrokeMode(prop_util.get_property(f"{paint_node}.{name}.mode")[0]),
-            brush=StrokeBrush(prop_util.get_property(f"{paint_node}.{name}.brush")[0]),
-            width=rv_to_image(width, height, prop_util.get_property(f"{paint_node}.{name}.width")[0]),
-            color=Color(*prop_util.get_property(f"{paint_node}.{name}.color")[0]),
-            points=[Point(*rv_to_itview(width, height, *point)) for point in prop_util.get_property(f"{paint_node}.{name}.points")]
-        )
+
+        strokes = []
+        transient_token = f":transient:{token}"
+        for name in prop_util.get_property(f"{paint_node}.frame:{frame}.order"):
+            if transient_token in name:
+                stroke = self.__get_transient_stroke(paint_node, width, height, name)
+                if strokes:
+                    stroke.cont = True
+                strokes.append(stroke)
+        return strokes
 
     def delete_transient_points(self, clip_id, frame, token):
         source_node, paint_node = self.__get_source_and_paint_node(clip_id)
@@ -329,6 +360,7 @@ class AnnotationApiCore(QtCore.QObject):
         source_node, paint_node = self.__get_source_and_paint_node(clip_id)
         if source_node is None: return
 
+        prev_stroke = None
         next_id = prop_util.get_property(f"{paint_node}.paint.nextId")[0]
         annotation_names = []
         for annotation in annotations:
@@ -336,7 +368,9 @@ class AnnotationApiCore(QtCore.QObject):
             if isinstance(annotation, Stroke):
                 name = f"pen:{next_id}:{frame}:{creator}"
                 annotation.set_custom_attr("rv_pen", name)
-                self.__set_stroke_properties(source_node, paint_node, annotation)
+                self.__set_stroke_properties(
+                    source_node, paint_node, annotation, prev_stroke)
+                prev_stroke = annotation
             elif isinstance(annotation, Text):
                 name = f"text:{next_id}:{frame}:{creator}"
                 annotation.set_custom_attr("rv_text", name)
@@ -347,6 +381,7 @@ class AnnotationApiCore(QtCore.QObject):
 
     def __redraw_annotations(self, source_node, paint_node, frame, annotations):
         self.__delete_all_annotations(paint_node, frame)
+        prev_stroke = None
         next_id = prop_util.get_property(f"{paint_node}.paint.nextId")[0]
         annotation_names = []
         for annotation in annotations:
@@ -360,7 +395,8 @@ class AnnotationApiCore(QtCore.QObject):
                         annotation_names.append(name)
                         annotation.set_custom_attr("rv_pen", name)
                         self.__set_stroke_properties(
-                            source_node, paint_node, annotation)
+                            source_node, paint_node, annotation, prev_stroke)
+                        prev_stroke = annotation
                 elif isinstance(annotation, Text):
                     if self.__session.viewport.feedback.are_texts_visible:
                         next_id += 1
@@ -372,10 +408,16 @@ class AnnotationApiCore(QtCore.QObject):
                 prop_util.set_property(f"{paint_node}.paint.nextId", [next_id])
         prop_util.append_property(f"{paint_node}.frame:{frame}.order", annotation_names)
 
-    def __set_stroke_properties(self, source_node, paint_node, stroke):
+    def __set_stroke_properties(self, source_node, paint_node, stroke, prev_stroke):
         smi = rvc.sourceMediaInfo(source_node)
         width, height = smi["width"], smi["height"]
         name = stroke.get_custom_attr("rv_pen")
+        points = []
+        if stroke.cont and prev_stroke is not None and prev_stroke.points:
+            points.append(itview_to_rv(
+                width, height, *prev_stroke.points[-1].__getstate__()))
+        points.extend([itview_to_rv(width, height, *point.__getstate__())
+            for point in stroke.points])
         prop_util.set_property(
                 f"{paint_node}.{name}.width",
                 [image_to_rv(width, height, stroke.width)])
@@ -389,8 +431,7 @@ class AnnotationApiCore(QtCore.QObject):
         points = [itview_to_rv(width, height, *point.__getstate__()) \
                 for point in stroke.points]
         prop_util.set_property(
-            f"{paint_node}.{name}.points",
-            points)
+            f"{paint_node}.{name}.points", points)
 
     def __set_text_properties(self, source_node, paint_node, text):
         smi = rvc.sourceMediaInfo(source_node)
@@ -630,13 +671,24 @@ class AnnotationApiCore(QtCore.QObject):
             prop_util.delete_property(f"{paint_node}.{name}")
         prop_util.delete_property(f"{paint_node}.frame:{frame}.order")
 
-    def __get_transient_stroke_name(self, paint_node, frame, token, create=False):
+    def __get_last_transient_stroke_name(self, paint_node, frame, token):
         transient_token = f":transient:{token}"
-        for name in prop_util.get_property(f"{paint_node}.frame:{frame}.order"):
+        for name in reversed(prop_util.get_property(f"{paint_node}.frame:{frame}.order")):
             if transient_token in name:
                 return name
-        if not create:
-            return None
+        return None
+
+    def __get_next_transient_stroke_name(self, paint_node, frame, token):
         next_id = prop_util.get_property(f"{paint_node}.paint.nextId")[0]
-        name = f"pen:{next_id}:{frame}:transient:{token}"
-        return name
+        next_id += 1
+        prop_util.set_property(f"{paint_node}.paint.nextId", [next_id])
+        return f"pen:{next_id}:{frame}:transient:{token}"
+
+    def __get_transient_stroke(self, paint_node, width, height, name):
+        return Stroke(
+            mode=StrokeMode(prop_util.get_property(f"{paint_node}.{name}.mode")[0]),
+            brush=StrokeBrush(prop_util.get_property(f"{paint_node}.{name}.brush")[0]),
+            width=rv_to_image(width, height, prop_util.get_property(f"{paint_node}.{name}.width")[0]),
+            color=Color(*prop_util.get_property(f"{paint_node}.{name}.color")[0]),
+            points=[Point(*rv_to_itview(width, height, *point)) for point in prop_util.get_property(f"{paint_node}.{name}.points")]
+        )

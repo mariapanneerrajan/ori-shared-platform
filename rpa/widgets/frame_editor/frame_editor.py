@@ -14,7 +14,7 @@ class FrameLabel(QtWidgets.QLabel):
     def update_value(self, value):
         self.value = str(value)
         self.__update_text()
-    
+
     def __update_text(self):
         self.setText(f"{self.prefix}: <b>{self.value}</b>")
 
@@ -66,7 +66,7 @@ class FrameEditor(QtWidgets.QWidget):
         self.__prev_frame_button = QtWidgets.QPushButton("<", self)
         self.__prev_frame_button.setToolTip("Previous Frame")
         self.__prev_frame_button.setFixedSize(QtCore.QSize(30, 30))
-        
+
         self.__next_frame_button = QtWidgets.QPushButton(">", self)
         self.__next_frame_button.setToolTip("Next Frame")
         self.__next_frame_button.setFixedSize(QtCore.QSize(30, 30))
@@ -90,7 +90,7 @@ class FrameEditor(QtWidgets.QWidget):
         self.__hold_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.__hold_spinbox = FrameSpinBox(self)
-        
+
         self.__hold_widget = QtWidgets.QWidget()
         self.__hold_layout = QtWidgets.QHBoxLayout()
         self.__hold_layout.setAlignment(QtCore.Qt.AlignCenter)
@@ -163,7 +163,7 @@ class FrameEditor(QtWidgets.QWidget):
         if clip_id is None:
             self.__reset_all_values()
             return
-        
+
         self.__current_clip_changed(clip_id)
 
     def __current_clip_changed(self, clip_id):
@@ -184,19 +184,19 @@ class FrameEditor(QtWidgets.QWidget):
         playing, forward = self.__timeline_api.get_playing_state()
         if playing:
             return
-        
+
         clip_id = self.__session_api.get_current_clip()
         if clip_id is None:
             self.__reset_all_values()
             return
-        
+
         self.__set_all_values(frame)
 
     def __set_all_values(self, frame):
         if frame is not None:
             current_seq_frame = frame
             current_clip_frame = None
-            
+
             [clip_frame] = self.__timeline_api.get_clip_frames([current_seq_frame])
             clip_id, current_clip_frame, local_frame = clip_frame
             tw_in = self.__session_api.get_attr_value(clip_id, "timewarp_in")
@@ -246,7 +246,7 @@ class FrameEditor(QtWidgets.QWidget):
         clip_id = self.__session_api.get_current_clip()
         frame_in = self.__session_api.get_attr_value(clip_id, "timewarp_in")
         frame_out = self.__session_api.get_attr_value(clip_id, "timewarp_out")
-        
+
         if None in (frame_in, frame_out):
             frame_in = self.__session_api.get_attr_value(clip_id, "key_in")
             frame_out = self.__session_api.get_attr_value(clip_id, "key_out")
@@ -257,7 +257,7 @@ class FrameEditor(QtWidgets.QWidget):
             frame_edit_value = frame_out
 
         record_frame = frame_edit_value - frame_in + 1
-        
+
         self.__frame_edit.setText(str(frame_edit_value))
         self.__timeline_api.goto_frame(record_frame)
 
@@ -275,7 +275,7 @@ class FrameEditor(QtWidgets.QWidget):
 
     def __hold_frames(self):
         clip_id = self.__session_api.get_current_clip()
-        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+        if not self.__session_api.are_frame_edits_allowed(clip_id):
             self.__show_frame_edits_not_allowed_message()
             return
         hold_value = int(self.__hold_spinbox.value())
@@ -285,12 +285,11 @@ class FrameEditor(QtWidgets.QWidget):
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
             clip_frame = current_clip_frame[2]
-            print("clip_frame", clip_frame, "hold_value", hold_value)
             self.__session_api.edit_frames(clip_id, 1, clip_frame, hold_value)
 
     def __drop_frames(self):
         clip_id = self.__session_api.get_current_clip()
-        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+        if not self.__session_api.are_frame_edits_allowed(clip_id):
             self.__show_frame_edits_not_allowed_message()
             return
         drop_value = self.__drop_spinbox.value()
@@ -300,12 +299,11 @@ class FrameEditor(QtWidgets.QWidget):
         if current_clip_frame:
             [current_clip_frame] = current_clip_frame
             clip_frame = current_clip_frame[2]
-            print("clip_frame", clip_frame, "drop_value", drop_value)
             self.__session_api.edit_frames(clip_id, -1, clip_frame, drop_value)
 
     def reset_frames(self):
         clip_id = self.__session_api.get_current_clip()
-        if not self.__session_api.are_frame_edits_allowed(clip_id):        
+        if not self.__session_api.are_frame_edits_allowed(clip_id):
             self.__show_frame_edits_not_allowed_message()
             return
         self.__session_api.reset_frames(clip_id)

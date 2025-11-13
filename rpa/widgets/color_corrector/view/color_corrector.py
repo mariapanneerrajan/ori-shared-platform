@@ -493,6 +493,9 @@ class ColorTimer(QtWidgets.QWidget):
         self.set_power(value[Slider.POWER.value])
         self.set_sat(value[Slider.SAT.value])
 
+    def get_mute(self):
+        return self.__header.get_mute_btn().isChecked()
+
 
 class Grade(QtWidgets.QWidget):
     LABEL_WIDTH = 65
@@ -637,3 +640,6 @@ class Grade(QtWidgets.QWidget):
         self.set_blackpoint(value[Slider.BLACKPOINT.value])
         self.set_whitepoint(value[Slider.WHITEPOINT.value])
         self.set_lift(value[Slider.LIFT.value])
+
+    def get_mute(self):
+        return self.__header.get_mute_btn().isChecked()

@@ -274,10 +274,10 @@ class SessionApiCore(QtCore.QObject):
         for clip_id, attr_ids in attr_values.items():
             clip = self.__session.get_clip(clip_id)
             for attr_id in attr_ids:
-                value = attr_values[clip_id][attr_id]                
+                value = attr_values[clip_id][attr_id]
                 clip.set_attr_value(attr_id, value)
                 attr_values_list.append(
-                    (playlist.id, clip.id, attr_id, value))            
+                    (playlist.id, clip.id, attr_id, value))
 
         self.__update_clip_nodes_in_playlist_node(playlist)
 
@@ -413,10 +413,12 @@ class SessionApiCore(QtCore.QObject):
             rv_secondary_transform = clip.get_custom_attr("rv_secondary_transform")
             rv_retime = clip.get_custom_attr("rv_retime")
             rv_ro_paint = clip.get_custom_attr("rv_ro_paint")
+            rv_ro_paint_parent = clip.get_custom_attr("rv_ro_paint_parent")
             rv_source_group = clip.get_custom_attr("rv_source_group")
             commands.deleteNode(rv_secondary_transform)
             commands.deleteNode(rv_retime)
             commands.deleteNode(rv_ro_paint)
+            commands.deleteNode(rv_ro_paint_parent)
             commands.deleteNode(rv_source_group)
             num_of_clips_deleted += 1
             self.PRG_CLIP_DELETED.emit(
@@ -497,6 +499,7 @@ class SessionApiCore(QtCore.QObject):
         # tools won't select the programmatic paint node
         transform_parent = commands.newNode("RVTransform2D", f"{source_group}_paint_parent")
         commands.setNodeInputs(transform_parent, [source_group])
+        clip.set_custom_attr("rv_ro_paint_parent", transform_parent)
 
         # Try to disable the transform to ensure zero performance overhead
         # Some node types may not support the node.active property
@@ -1119,7 +1122,7 @@ class SessionApiCore(QtCore.QObject):
         retime = clip.get_custom_attr("rv_retime")
         commands.setIntProperty(
             f"{retime}.explicit.firstOutputFrame", [source_frames[0]], True
-        )        
+        )
         commands.setIntProperty(
             f"{retime}.explicit.inputFrames", source_frames, True)
 
@@ -1131,7 +1134,7 @@ class SessionApiCore(QtCore.QObject):
 
         clip.edit_frames(edit, local_frame, num_frames)
         self.__update_retime_node(clip_id)
-        
+
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
         return True
 
@@ -1141,11 +1144,11 @@ class SessionApiCore(QtCore.QObject):
 
         clip.reset_frames()
         self.__update_retime_node(clip_id)
-        
+
         self.SIG_PLAYLIST_MODIFIED.emit(clip.playlist_id)
         return True
 
-    def are_frame_edits_allowed(self, clip_id):        
+    def are_frame_edits_allowed(self, clip_id):
         clip = self.__session.get_clip(clip_id)
         if not clip:
             return False

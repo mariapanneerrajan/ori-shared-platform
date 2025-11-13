@@ -26,6 +26,7 @@ from rpa.widgets.session_io.session_io import SessionIO
 from rpa.widgets.media_path_overlay.media_path_overlay import MediaPathOverlay
 from rpa.widgets.session_auto_saver.session_auto_saver import SessionAutoSaver
 from rpa.widgets.frame_editor.frame_editor import FrameEditor
+from rpa.widgets.help_menu.help_menu import HelpMenu
 # from rpa.widgets.playlist_creator.playlist_creator import PlaylistCreator
 
 from rpa.widgets.test_widgets.test_session_api import TestSessionApi
@@ -431,6 +432,10 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         action = QAction("Frame Editor", parent=self.__main_window)
         action.triggered.connect(self.__show_frame_editor)
         rpa_widgets_menu.addAction(action)
+
+        help_menu = HelpMenu(self.__rpa, self.__main_window)
+        help_menu.addAction(rpa_interpretter_action)
+        rpa_widgets_menu.addMenu(help_menu)
 
         # action = QAction("Playlists Creator", parent=self.__main_window)
         # action.triggered.connect(self.__show_playlists_creator)
