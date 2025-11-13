@@ -37,6 +37,8 @@ class ClipAttrKeyIn:
 
     def set_value(self, source_group:str, value:int)->bool:
 
+        # Make sure key_in is not greater than key_out
+
         if not isinstance(value, int):
             value = self.default_value
 
