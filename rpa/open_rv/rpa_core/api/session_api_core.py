@@ -274,10 +274,10 @@ class SessionApiCore(QtCore.QObject):
         for clip_id, attr_ids in attr_values.items():
             clip = self.__session.get_clip(clip_id)
             for attr_id in attr_ids:
-                value = attr_values[clip_id][attr_id]
+                value = attr_values[clip_id][attr_id]                
                 clip.set_attr_value(attr_id, value)
                 attr_values_list.append(
-                    (playlist.id, clip.id, attr_id, value))
+                    (playlist.id, clip.id, attr_id, value))            
 
         self.__update_clip_nodes_in_playlist_node(playlist)
 
@@ -532,6 +532,10 @@ class SessionApiCore(QtCore.QObject):
                 commands.setNodeInputs(node, updated)
         cross_dissolve = commands.newNode(
             "CrossDissolve", f"{source_group}_cross_dissolve")
+        # Set the cross_dissolve node to be not active        
+        commands.setIntProperty(f"{cross_dissolve}.node.active", [0], True)
+        commands.setFloatProperty(f"{cross_dissolve}.parameters.startFrame", [float(0)], True)        
+        commands.setFloatProperty(f"{cross_dissolve}.parameters.numFrames", [float(0)], True)
         clip.set_custom_attr("rv_cross_dissolve", cross_dissolve)
         self.__annotation_api._update_visibility(id)
 
@@ -785,43 +789,111 @@ class SessionApiCore(QtCore.QObject):
     def get_mix_mode(self):
         return self.__session.viewport.mix_mode
 
-    def __update_clip_nodes_in_playlist_node(self, playlist):
-        clip_nodes = [self.__session.get_clip(clip_id).\
-            get_custom_attr("rv_secondary_transform") \
-            for clip_id in playlist.active_clip_ids]
-        playlist_node = playlist.get_custom_attr("rv_sequence_group")
-        commands.setNodeInputs(playlist_node, clip_nodes)
-
     # def __update_clip_nodes_in_playlist_node(self, playlist):
-    #     """
-    #    #TODO: WIP DISSOLVE LOGIC
-    #     Update playlist node inputs with clips connected via cross-dissolves.
-    #     Connects clips in reverse order (N-1 to N) using their secondary transform nodes.
-    #     """
-    #     # Get active clip IDs in reverse order for efficient processing
-    #     index = len(playlist.active_clip_ids) - 1
-    #     if index == 0:
-    #         return
-    #     while index >= 0:
-    #         clip_a_id = playlist.active_clip_ids[index - 1]
-    #         clip_b_id = playlist.active_clip_ids[index]
-
-    #         clip_a = self.__session.get_clip(clip_a_id)
-    #         clip_b = self.__session.get_clip(clip_b_id)
-
-    #         clip_a_secondary_transform = clip_a.get_custom_attr("rv_secondary_transform")
-    #         if index == len(playlist.active_clip_ids) - 1:
-    #             clip_b_input = clip_b.get_custom_attr("rv_secondary_transform")
-    #         else:
-    #             clip_b_input = clip_b.get_custom_attr("rv_cross_dissolve")
-    #         cross_dissolve = clip_a.get_custom_attr("rv_cross_dissolve")
-    #         commands.setNodeInputs(cross_dissolve, [clip_a_secondary_transform, clip_b_input])
-
-    #     # Set all inputs to the playlist sequence node
+    #     clip_nodes = [self.__session.get_clip(clip_id).\
+    #         get_custom_attr("rv_secondary_transform") \
+    #         for clip_id in playlist.active_clip_ids]
     #     playlist_node = playlist.get_custom_attr("rv_sequence_group")
-    #     first_clip = self.__session.get_clip(playlist.active_clip_ids[0])
-    #     fist_clip_cross_dissolve = first_clip.get_custom_attr("rv_cross_dissolve")
-    #     commands.setNodeInputs(playlist_node, [fist_clip_cross_dissolve])
+    #     commands.setNodeInputs(playlist_node, clip_nodes)
+
+    def __is_clip_cross_dissolve_active(self, clip):
+        """Check if a clip has an active cross-dissolve transition."""
+        cross_dissolve = clip.get_custom_attr("rv_cross_dissolve")
+        if cross_dissolve and commands.propertyExists(f"{cross_dissolve}.node.active"):
+            active_values = commands.getIntProperty(f"{cross_dissolve}.node.active")
+            return bool(active_values and active_values[0])
+        return False
+
+    def __get_clip_output_node(self, clip, index, total_clips):
+        """
+        Determine which node to use as output for this clip.
+        
+        Returns the clip's cross-dissolve node if:
+        - The clip has an active cross-dissolve, AND
+        - It's not the last clip in the sequence
+        
+        Otherwise returns the clip's secondary transform node.
+        
+        Args:
+            clip: The clip object to get output node for
+            index: The clip's position in the playlist (0-based)
+            total_clips: Total number of clips in the playlist
+            
+        Returns:
+            str: Node name to use as output
+        """
+        if self.__is_clip_cross_dissolve_active(clip) and index < total_clips - 1:
+            return clip.get_custom_attr("rv_cross_dissolve")
+        return clip.get_custom_attr("rv_secondary_transform")
+
+    def __update_clip_nodes_in_playlist_node(self, playlist):
+        """
+        Update playlist node inputs with clips connected via cross-dissolves.
+        
+        Builds the node graph by processing clips from first to last, connecting
+        adjacent clips either directly or through cross-dissolve transitions.
+        
+        Node connection logic:
+        - Each clip normally connects via its secondary_transform node
+        - If a clip has an active cross-dissolve, it blends into the next clip
+        - The cross-dissolve node takes two inputs: [current_clip, next_clip]
+        - Cross-dissolves are only applied between adjacent clips (not on last clip)
+        
+        Args:
+            playlist: The playlist object to update
+        """
+        playlist_node = playlist.get_custom_attr("rv_sequence_group")
+        num_clips = len(playlist.active_clip_ids)
+        
+        # Handle empty playlist
+        if num_clips == 0:
+            commands.setNodeInputs(playlist_node, [])
+            return
+        
+        # Handle single clip - connect directly
+        if num_clips == 1:
+            first_clip = self.__session.get_clip(playlist.active_clip_ids[0])
+            first_clip_node = first_clip.get_custom_attr("rv_secondary_transform")
+            commands.setNodeInputs(playlist_node, [first_clip_node])
+            return
+        
+        # Build inputs list by processing clips forward
+        inputs = []
+        
+        for i in range(num_clips):
+            clip_id = playlist.active_clip_ids[i]
+            clip = self.__session.get_clip(clip_id)
+            
+            # Get the appropriate output node for this clip
+            clip_output_node = self.__get_clip_output_node(clip, i, num_clips)
+            
+            # Check if previous clip has a cross-dissolve into this one
+            if i > 0:
+                prev_clip_id = playlist.active_clip_ids[i - 1]
+                prev_clip = self.__session.get_clip(prev_clip_id)
+                
+                if self.__is_clip_cross_dissolve_active(prev_clip):
+                    # Previous clip dissolves into current clip
+                    dissolve_node = prev_clip.get_custom_attr("rv_cross_dissolve")
+                    prev_clip_node = prev_clip.get_custom_attr("rv_secondary_transform")
+                    
+                    # Configure the cross-dissolve: [previous_clip, current_clip]
+                    commands.setNodeInputs(dissolve_node, [prev_clip_node, clip_output_node])
+                    
+                    # Replace the previous clip's node with its dissolve node
+                    # Only replace last element with dissolve_node if it's not already a cross-dissolve node
+                    if inputs and not inputs[-1].endswith("_cross_dissolve"):
+                        inputs[-1] = dissolve_node
+                else:
+                    # No dissolve from previous clip - add current clip normally
+                    inputs.append(clip_output_node)
+            else:
+                # First clip - always add
+                inputs.append(clip_output_node)
+        
+        print("inputs", inputs)
+        # Connect all clips to the playlist sequence node
+        commands.setNodeInputs(playlist_node, inputs)
 
     def set_attr_values(self, attr_values):
         num_of_attrs_to_set = len(attr_values)
@@ -833,27 +905,35 @@ class SessionApiCore(QtCore.QObject):
             playlist = self.__session.get_playlist(playlist_id)
             clip = self.__session.get_clip(clip_id)
             
-            clip.set_attr_value(attr_id, value)
-            if attr_id in ("key_in", "key_out"):
-                self.__update_retime_node(clip_id)
-
             clip_source_node = clip.get_custom_attr("rv_source_group")
             attr = self.__clip_attr_api.get_attr(attr_id)
+            is_value_set = False
             if attr is None:
                 continue
             elif self.__session.attrs_metadata.is_keyable(attr_id):
-                attr._set_value(clip_source_node, value)
+                is_value_set = attr._set_value(clip_source_node, value)
             else:
-                attr.set_value(clip_source_node, value)
+                is_value_set = attr.set_value(clip_source_node, value)
+            
+            if not is_value_set: continue
+            
+            clip.set_attr_value(attr_id, value)
+            if attr_id in ("key_in", "key_out"):
+                self.__update_clip_nodes_in_playlist_node(playlist)
+                self.__update_retime_node(clip_id)
+            if attr_id in ("dissolve_start", "dissolve_length"):
+                self.__update_clip_nodes_in_playlist_node(playlist)
 
             attr_values_set.append((playlist_id, clip_id, attr_id, value))
 
             if hasattr(attr, "dependent_attr_ids"):
                 for dependent_attr_id in attr.dependent_attr_ids:
                     attr = self.__clip_attr_api.get_attr(dependent_attr_id)
-                    value  = attr.get_value(clip_source_node)
+                    value  = attr.get_value(clip_source_node)                    
                     if value is None:
                         value = clip.get_attr_value(dependent_attr_id)
+                    else:
+                        clip.set_attr_value(dependent_attr_id, value)
                     attr_values_set.append(
                         (playlist_id, clip_id, dependent_attr_id, value))
 
@@ -865,8 +945,7 @@ class SessionApiCore(QtCore.QObject):
         # timeline update for when frame control attrs change
         if any(attr_value[0] == self.__session.viewport.fg and \
             attr_value[2] in ("key_in", "key_out") for attr_value in attr_values):
-            playlist = self.__session.get_playlist(self.__session.viewport.fg)
-            # self.__generate_edl(playlist)
+            playlist = self.__session.get_playlist(self.__session.viewport.fg)            
 
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values_set)
         return True
@@ -1040,8 +1119,7 @@ class SessionApiCore(QtCore.QObject):
         retime = clip.get_custom_attr("rv_retime")
         commands.setIntProperty(
             f"{retime}.explicit.firstOutputFrame", [source_frames[0]], True
-        )
-        [1001, 1001, 1001, 1001, 1001, 1001, 1002, 1003, 1003, 1005, 1005, 1005, 1005, 1005]
+        )        
         commands.setIntProperty(
             f"{retime}.explicit.inputFrames", source_frames, True)
 

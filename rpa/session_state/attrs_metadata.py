@@ -66,30 +66,6 @@ class AttrsMetadata:
                 }
             }
         )
-        self.add(
-            {
-                "dissolve_start": {
-                    "name": "Dissolve Start",
-                    "data_type": "int",
-                    "is_read_only": False,
-                    "is_keyable": False,
-                    "default_value": None,
-                    "attr_type": "session"
-                }
-            }
-        )
-        self.add(
-            {
-                "dissolve_length": {
-                    "name": "Dissolve Length",
-                    "data_type": "int",
-                    "is_read_only": False,
-                    "is_keyable": False,
-                    "default_value": None,
-                    "attr_type": "session"
-                }
-            }
-        )
 
     @property
     def parent(self):

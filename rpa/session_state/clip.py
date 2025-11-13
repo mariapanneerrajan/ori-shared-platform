@@ -87,9 +87,12 @@ class Clip:
                 if key_in != media_start or key_out != media_end:
                     self.__has_key_in_out_edits = True
                 else:
-                    self.__has_key_in_out_edits = False                
+                    self.__has_key_in_out_edits = False
         else:
             self.__attrs[id] = value
+        
+        if id in ("dissolve_start", "dissolve_length"):
+            dissolve_length = self.__attrs.get("dissolve_length")            
 
     def __generate_clamped_source_frames(self, key_in, key_out, media_start, media_end):
         """
@@ -244,6 +247,12 @@ class Clip:
         print("reset has frame edits", self.__has_frame_edits)
 
     def get_source_frames(self):
+        return self.__source_frames
+    
+    def get_timeline_frames(self):
+        dissolve_length = self.__attrs.get("dissolve_length")
+        if dissolve_length is not None and dissolve_length > 0:
+            return self.__source_frames[:-dissolve_length]
         return self.__source_frames
     
     def __set_timewarp_attr_values(self):

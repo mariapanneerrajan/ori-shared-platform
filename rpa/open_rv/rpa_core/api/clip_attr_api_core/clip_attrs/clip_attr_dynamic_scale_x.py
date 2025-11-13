@@ -46,6 +46,8 @@ class ClipAttrDynamicScaleX:
                 rvc.setFloatProperty(
                     f"{source_group}_secondary_transform.transform.scale",
                     [value, current_scale_y])
+                return True
+        return False
 
 
 

@@ -43,6 +43,8 @@ class ClipAttrDynamicRotation:
             if current_value != value:
                 rvc.setFloatProperty(
                     f"{source_group}_secondary_transform.transform.rotate", [value])
+                return True
+        return False
 
 
 ClipAttrApiCore.get_instance()._add_attr(ClipAttrDynamicRotation())
