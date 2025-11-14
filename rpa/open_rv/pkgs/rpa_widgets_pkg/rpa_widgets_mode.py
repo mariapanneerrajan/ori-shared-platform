@@ -297,8 +297,9 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         self.__show_annotation()
         self.__hide_rv_timeline()
         self.__show_timeline()
-        self.__show_color_corrector()
+        # self.__show_color_corrector()
         self.__show_session_auto_saver(False)
+        self.__show_frame_editor(True)
 
         commands.writeSettings("rpa", "is_rpa_mode", True)
 
@@ -409,9 +410,8 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         action.triggered.connect(self.__show_session_assistant)
         rpa_widgets_menu.addAction(action)
 
-        action = QAction("RPA Interpreter", parent=self.__main_window)
-        action.triggered.connect(self.__show_rpa_interpreter)
-        rpa_widgets_menu.addAction(action)
+        rpa_interpretter_action = QAction("RPA Interpreter", parent=self.__main_window)
+        rpa_interpretter_action.triggered.connect(self.__show_rpa_interpreter)        
 
         action = QAction("Show FStop Slider ", parent=self.__main_window)
         action.triggered.connect(self.__show_fstop_slider)

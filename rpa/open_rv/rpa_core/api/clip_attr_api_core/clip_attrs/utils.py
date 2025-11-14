@@ -46,14 +46,20 @@ def validate_cross_dissolve(source_group:str):
     key_length = key_out - key_in + 1
 
     dissolve_length = commands.getFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames")[0]
-    if key_length < dissolve_length:            
+    if key_length < dissolve_length:
         # Deactivate the cross dissolve node by setting its 'node.active' property to 0
-        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)        
-        commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)        
+        commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [0], True)
+        commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(0)], True)
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(0)], True)
     else:
         commands.setIntProperty(f"{source_group}_cross_dissolve.node.active", [1], True)
         dissolve_start = key_length - dissolve_length + 1
-        commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(dissolve_start)], True)    
+        commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.startFrame", [float(dissolve_start)], True)
         commands.setFloatProperty(f"{source_group}_cross_dissolve.parameters.numFrames", [float(dissolve_length)], True)
     return True
+
+
+def has_frame_edits(source_group)->bool:
+    if not commands.propertyExists(f"{source_group}.custom.has_frame_edits"):
+        return False
+    return commands.getIntProperty(f"{source_group}.custom.has_frame_edits")[0] == 1

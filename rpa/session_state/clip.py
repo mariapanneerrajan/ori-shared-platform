@@ -5,6 +5,7 @@ from rpa.session_state.annotations import Annotations
 import copy
 
 
+
 class Clip:
     id_to_self = {}
     def __init__(self, playlist_id, id, path):
@@ -38,6 +39,10 @@ class Clip:
     def annotations(self):
         return self.__annotations
 
+    @property
+    def has_frame_edits(self)->bool:
+        return self.__has_frame_edits
+
     def set_custom_attr(self, attr_id, value):
         self.__custom_attrs[attr_id] = value
         return True
@@ -54,32 +59,10 @@ class Clip:
             # will always be set after media_start_frame and media_end_frame.
             media_start = self.__attrs.get("media_start_frame")
             media_end = self.__attrs.get("media_end_frame")
-            if self.__has_frame_edits:
-                # key_in and key_out can not be changed when frame edits are present
-                if id  == "key_in" and value != media_start:
-                    print("key_in change is not allowed when frame edits are present")
-                    return
-                elif id == "key_out" and value != media_end:
-                    print("key_out change is not allowed when frame edits are present")
-                    return
-            else:
+            if not self.__has_frame_edits:
+                self.__attrs[id] = value
                 key_in = self.__attrs.get("key_in")
                 key_out = self.__attrs.get("key_out")
-                if id == "key_in":
-                    _key_out = media_end if key_out is None else key_out
-                    if value > _key_out:
-                        print("key_in is greater than key_out")
-                        return
-                    else:
-                        key_in = value
-                elif id == "key_out":
-                    _key_in = media_start if key_in is None else key_in
-                    if value < _key_in:
-                        print("key_out is less than key_in")
-                        return
-                    else:
-                        key_out = value
-                self.__attrs[id] = value
                 self.__source_frames.clear()
                 self.__source_frames = self.__generate_clamped_source_frames(
                     key_in, key_out, media_start, media_end
@@ -196,14 +179,6 @@ class Clip:
     def are_frame_edits_allowed(self):
         return not self.__has_key_in_out_edits
 
-    def __update_has_frame_edits(self):
-        for index in range(len(self.__source_frames)):
-            if index < len(self.__source_frames) - 2:
-                if self.__source_frames[index] == self.__source_frames[index + 1]:
-                    self.__has_frame_edits = True
-                    return
-        self.__has_frame_edits = False
-
     def edit_frames(self, edit, local_frame, num_frames):
         if self.__has_key_in_out_edits:
             print("frame edits are not allowed when key_in and/or key_out edits are present!")
@@ -222,8 +197,8 @@ class Clip:
         elif edit == -1: # drop
             del self.__source_frames[frame_index:frame_index + num_frames]
 
-        self.__set_timewarp_attr_values()
         self.__update_has_frame_edits()
+        self.__set_timewarp_attr_values()
 
     def reset_frames(self):
         if self.__has_key_in_out_edits:
@@ -237,12 +212,34 @@ class Clip:
             key_in, key_out, media_start, media_end
         )
 
-        self.__set_timewarp_attr_values()
         self.__update_has_frame_edits()
+        self.__set_timewarp_attr_values()
+
+    def __update_has_frame_edits(self):
+        if len(self.__source_frames) <= 1:
+            self.__has_frame_edits = False
+            return
+
+        for index in range(len(self.__source_frames) - 1):
+            current_frame = self.__source_frames[index]
+            next_frame = self.__source_frames[index + 1]
+
+            # Check for held frames (duplicates)
+            if current_frame == next_frame:
+                self.__has_frame_edits = True
+                return
+
+            # Check for dropped frames (gaps greater than 1)
+            # Normal sequence should increment by 1, so any gap > 1 indicates dropped frames
+            if abs(next_frame - current_frame) > 1:
+                self.__has_frame_edits = True
+                return
+
+        self.__has_frame_edits = False
 
     def get_source_frames(self):
         return self.__source_frames
-    
+
     def get_timeline_frames(self):
         dissolve_length = self.__attrs.get("dissolve_length")
         if dissolve_length is not None and dissolve_length > 0:

@@ -209,7 +209,7 @@ class HeaderViewPrefCntrlr:
     def set_attrs(self, attrs):
 
         if len(attrs) == 1 and attrs[0] == "play_order":
-            attrs = ["play_order", "media_path"]
+            attrs = ["play_order", "media_path", "key_in", "key_out", "timewarp_in", "timewarp_out", "timewarp_length"]
         all_attrs = []
         attrs_set = set(attrs)
         for action in self.__view.clip_attrs_menu.actions():
