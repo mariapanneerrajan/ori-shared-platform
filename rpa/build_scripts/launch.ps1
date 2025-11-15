@@ -46,20 +46,20 @@ try {
 Write-Host "[3/3] Launching OpenRV..." -ForegroundColor Yellow
 Write-Host "--------------------------" -ForegroundColor Yellow
 
-# # OpenRV executable path
-# $RV_EXE = "C:\OpenRV_1.0\OpenRV_1.0\bin\rv.exe"
+# OpenRV executable path
+$RV_EXE = "C:\OpenRV_1.0\OpenRV_1.0\bin\rv.exe"
 
-# # Check if OpenRV executable exists
-# if (Test-Path $RV_EXE) {
-#     Write-Host "Starting OpenRV from: $RV_EXE" -ForegroundColor Cyan
-#     Write-Host ""
-#     Start-Process -FilePath $RV_EXE
-#     Write-Host "OpenRV launched successfully!" -ForegroundColor Green
-# } else {
-#     Write-Warning "OpenRV executable not found at: $RV_EXE"
-#     Write-Warning "Please verify the OpenRV installation path and update this script if needed."
-#     exit 1
-# }
+# Check if OpenRV executable exists
+if (Test-Path $RV_EXE) {
+    Write-Host "Starting OpenRV from: $RV_EXE" -ForegroundColor Cyan
+    Write-Host ""
+    Start-Process -FilePath $RV_EXE
+    Write-Host "OpenRV launched successfully!" -ForegroundColor Green
+} else {
+    Write-Warning "OpenRV executable not found at: $RV_EXE"
+    Write-Warning "Please verify the OpenRV installation path and update this script if needed."
+    exit 1
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan

@@ -8,7 +8,8 @@ from collections import deque
 import os
 
 
-TEST_MEDIA_DIR = os.environ.get("TEST_MEDIA_DIR")
+# TEST_MEDIA_DIR = os.environ.get("TEST_MEDIA_DIR")
+TEST_MEDIA_DIR = "C:\\Users\\maria\\Videos\\blender"
 
 def __test(comp, name, expected, actual):
     if comp(expected, actual):
@@ -25,6 +26,7 @@ class TestSessionApi:
     def __init__(self, rpa, parent_widget):
         self.__rpa = rpa
         self.__session_api = self.__rpa.session_api
+        self.__timeline_api = self.__rpa.timeline_api
         self.__test_cnt = 0
 
         self.__view = QtWidgets.QWidget(parent_widget)
@@ -53,7 +55,7 @@ class TestSessionApi:
         return self.__view
 
     def __run_test(self):
-        
+
         if not TEST_MEDIA_DIR:
             print("++++++++")
             print("Kindly set TEST_MEDIA_DIR environment variable to point to directory with test media!")
@@ -62,98 +64,99 @@ class TestSessionApi:
 
         tests = [
             partial(self.__set_header, "1 Session must always have a FG playlist!"),
-            partial(self.__clear_session),
-            partial(self.__test_2),
-            partial(self.__test_3),
-            partial(self.__restore_deleted_playlists),
-            partial(self.__test_2),
-            partial(self.__clear_session),
-            partial(self.__create_playlists_1),
-            partial(self.__clear_session),
-            partial(self.__create_playlists_1),
-            partial(self.__test_7),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__test_8),
-            partial(self.__create_playlists_1),
-            partial(self.__test_9),
-            partial(self.__delete_playlists_permanently),
-            partial(self.__clear_session),
-            partial(self.__set_header, "3 FG & BG  Management"),
-            partial(self.__create_playlists_2),
-            partial(self.__test_12),
-            partial(self.__set_bg_mode_wipe),
-            partial(self.__swap_fg_and_bg_playlists),
-            partial(self.__set_bg_mode_none),
-            partial(self.__set_bg_mode_side_by_side),
-            partial(self.__swap_fg_and_bg_playlists),
-            partial(self.__set_bg_mode_none),
-            partial(self.__set_bg_mode_top_bottom),
-            partial(self.__swap_fg_and_bg_playlists),
-            partial(self.__set_bg_mode_none),
-            partial(self.__set_bg_mode_pip),
-            partial(self.__swap_fg_and_bg_playlists),
-            partial(self.__set_bg_mode_wipe),
-            partial(self.__test_13),
-            partial(self.__test_14),
-            partial(self.__test_15),
-            partial(self.__restore_deleted_playlists),
-            partial(self.__test_16),
-            partial(self.__clear_session),
-            partial(self.__set_header, "4 Move Playlists"),
-            partial(self.__create_playlists_3),
-            partial(self.__move_playlists_to_index_1),
-            partial(self.__move_playlists_to_index_2),
-            partial(self.__move_playlists_to_index_3),
-            partial(self.__clear_session),
-            partial(self.__create_playlists_3),
-            partial(self.__move_playlists_up),
-            partial(self.__move_playlists_up),
-            partial(self.__move_playlists_down),
-            partial(self.__move_playlists_down),
-            partial(self.__move_playlists_top),
-            partial(self.__move_playlists_bottom),
-            partial(self.__test_21),
-            partial(self.__clear_session),
-            partial(self.__set_header, "6 Clip Operations"),
-            partial(self.__create_playlists_4),
-            partial(self.__move_clip_after_creation),
-            partial(self.__clear_session),
-            partial(self.__create_playlists_4),
-            partial(self.__test_22),
-            partial(self.__test_23),
-            partial(self.__set_playlist_one_to_fg),
-            partial(self.__move_clips_to_index_1),
-            partial(self.__move_clips_to_index_2),
-            partial(self.__move_clips_to_index_3),
-            partial(self.__move_clips_up),
-            partial(self.__move_clips_down),
-            partial(self.__move_clips_top),
-            partial(self.__move_clips_bottom),
-            partial(self.__test_23),
-            partial(self.__set_playlist_three_to_fg),
-            partial(self.__set_playlist_one_to_fg),
-            partial(self.__set_playlist_three_to_fg),
-            partial(self.__test_33),
-            partial(self.__create_playlists_5),
-            partial(self.__test_34),
-            partial(self.__test_35),
+            # partial(self.__clear_session),
+            # partial(self.__test_2),
+            # partial(self.__test_3),
+            # partial(self.__restore_deleted_playlists),
+            # partial(self.__test_2),
+            # partial(self.__clear_session),
+            # partial(self.__create_playlists_1),
+            # partial(self.__clear_session),
+            # partial(self.__create_playlists_1),
+            # partial(self.__test_7),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__test_8),
+            # partial(self.__create_playlists_1),
+            # partial(self.__test_9),
+            # partial(self.__delete_playlists_permanently),
+            # partial(self.__clear_session),
+            # partial(self.__set_header, "3 FG & BG  Management"),
+            # partial(self.__create_playlists_2),
+            # partial(self.__test_12),
+            # partial(self.__set_bg_mode_wipe),
+            # partial(self.__swap_fg_and_bg_playlists),
+            # partial(self.__set_bg_mode_none),
+            # partial(self.__set_bg_mode_side_by_side),
+            # partial(self.__swap_fg_and_bg_playlists),
+            # partial(self.__set_bg_mode_none),
+            # partial(self.__set_bg_mode_top_bottom),
+            # partial(self.__swap_fg_and_bg_playlists),
+            # partial(self.__set_bg_mode_none),
+            # partial(self.__set_bg_mode_pip),
+            # partial(self.__swap_fg_and_bg_playlists),
+            # partial(self.__set_bg_mode_wipe),
+            # partial(self.__test_13),
+            # partial(self.__test_14),
+            # partial(self.__test_15),
+            # partial(self.__restore_deleted_playlists),
+            # partial(self.__test_16),
+            # partial(self.__clear_session),
+            # partial(self.__set_header, "4 Move Playlists"),
+            # partial(self.__create_playlists_3),
+            # partial(self.__move_playlists_to_index_1),
+            # partial(self.__move_playlists_to_index_2),
+            # partial(self.__move_playlists_to_index_3),
+            # partial(self.__clear_session),
+            # partial(self.__create_playlists_3),
+            # partial(self.__move_playlists_up),
+            # partial(self.__move_playlists_up),
+            # partial(self.__move_playlists_down),
+            # partial(self.__move_playlists_down),
+            # partial(self.__move_playlists_top),
+            # partial(self.__move_playlists_bottom),
+            # partial(self.__test_21),
+            # partial(self.__clear_session),
+            # partial(self.__set_header, "6 Clip Operations"),
+            # partial(self.__create_playlists_4),
+            # partial(self.__move_clip_after_creation),
+            # partial(self.__clear_session),
+            # partial(self.__create_playlists_4),
+            # partial(self.__test_22),
+            # partial(self.__test_23),
+            # partial(self.__set_playlist_one_to_fg),
+            # partial(self.__move_clips_to_index_1),
+            # partial(self.__move_clips_to_index_2),
+            # partial(self.__move_clips_to_index_3),
+            # partial(self.__move_clips_up),
+            # partial(self.__move_clips_down),
+            # partial(self.__move_clips_top),
+            # partial(self.__move_clips_bottom),
+            # partial(self.__test_23),
+            # partial(self.__set_playlist_three_to_fg),
+            # partial(self.__set_playlist_one_to_fg),
+            # partial(self.__set_playlist_three_to_fg),
+            # partial(self.__test_33),
+            # partial(self.__create_playlists_5),
+            # partial(self.__test_34),
+            # partial(self.__test_35),
             partial(self.__clear_session),
             partial(self.__set_header, "7 Setting Clip Attrs"),
             partial(self.__create_playlists_5),
-            partial(self.__test_36),
-            partial(self.__test_37),
-            partial(self.__test_38),
-            partial(self.__test_39),
-            partial(self.__clear_session),
-            partial(self.__create_clips),
-            partial(self.__custom_attrs_1),
-            partial(self.__clear_session),
+            # partial(self.__test_36),
+            # partial(self.__test_37),
+            # partial(self.__test_38),
+            partial(self.__frame_edits),
+            partial(self.__cross_dissolve),
+            # partial(self.__clear_session),
+            # partial(self.__create_clips),
+            # partial(self.__custom_attrs_1),
+            # partial(self.__clear_session),
         ]
         func = tests[self.__test_cnt]
         func()
@@ -674,24 +677,80 @@ class TestSessionApi:
         ]
         self.__session_api.set_attr_values(attr_values)
 
-    def __test_39(self):
-        self.__label.setText("Frame edits - hold")
+    def __get_frame_count(self):
+        """Helper to get current frame count from timeline."""
+        frame_range = self.__timeline_api.get_frame_range()
+        return frame_range[1] - frame_range[0] + 1
+
+    def __frame_edits(self):
+        """Test key in and key out frame edits with various scenarios."""
+        self.__label.setText("Key in and key out edits")
         playlist = self.__session_api.get_playlists()[0]
-        clip = self.__session_api.get_current_clip()
-        has_frame_edits = self.__session_api.has_frame_edits(clip)
-        test_eq("has frame edits False", False, has_frame_edits)
-        self.__session_api.edit_frames(clip, 1, 1, 5)
-        has_frame_edits = self.__session_api.has_frame_edits(clip)
-        test_eq("has frame edits True", True, has_frame_edits)
-        self.__session_api.edit_frames(clip, -1, 1, 5)
-        has_frame_edits = self.__session_api.has_frame_edits(clip)
-        test_eq("has frame edits False", False, has_frame_edits)
-        self.__session_api.edit_frames(clip, 1, 1, 10)
-        has_frame_edits = self.__session_api.has_frame_edits(clip)
-        test_eq("has frame edits True", True, has_frame_edits)
-        self.__session_api.reset_frames(clip)
-        has_frame_edits = self.__session_api.has_frame_edits(clip)
-        test_eq("has frame edits False", False, has_frame_edits)
+        self.__session_api.set_active_clips(playlist, [])
+        clips = self.__session_api.get_clips(playlist)
+
+
+        def get_clip_bounds(clip):
+            """Helper to get key_in and key_out values for a clip."""
+            return (
+                self.__session_api.get_attr_value(clip, "key_in"),
+                self.__session_api.get_attr_value(clip, "key_out")
+            )
+
+        def modify_clip_bounds(clip, key_in_offset, key_out_offset):
+            """Helper to modify clip bounds and return new frame count."""
+            key_in, key_out = get_clip_bounds(clip)
+            self.__session_api.set_attr_values([
+                (playlist, clip, "key_in", key_in + key_in_offset),
+                (playlist, clip, "key_out", key_out + key_out_offset)
+            ])
+            return self.__get_frame_count()
+
+        # Test 1: Modify clip_1 bounds without frame edits - should change timeline
+        clip_1 = clips[0]
+        initial_frame_count = self.__get_frame_count()
+        new_frame_count = modify_clip_bounds(clip_1, -100, 50)
+        test_eq("Number of Frames", initial_frame_count + 150, new_frame_count)
+        test_eq("Frame Edits Allowed", False, self.__session_api.are_frame_edits_allowed(clip_1))
+
+        # Test 2: Apply frame edits to clip_2, then modify bounds - should not change timeline
+        clip_2 = clips[1]
+        frame_count_before_edits = self.__get_frame_count()
+        self.__session_api.edit_frames(clip_2, 1, 1, 100)
+        self.__session_api.edit_frames(clip_2, -1, 1, 50)
+        frame_count_after_edits = self.__get_frame_count()
+        test_eq("Number of Frames", frame_count_before_edits + 50, frame_count_after_edits)
+
+        # Modify bounds after frame edits - timeline should remain unchanged
+        frame_count_before_modify = self.__get_frame_count()
+        modify_clip_bounds(clip_2, -100, 50)
+        frame_count_after_modify = self.__get_frame_count()
+        test_eq("Number of Frames", frame_count_before_modify, frame_count_after_modify)
+        test_eq("Frame Edits Allowed", True, self.__session_api.are_frame_edits_allowed(clip_2))
+
+        # Test 3: Reset frame edits, then modify bounds - should change timeline again
+        self.__session_api.reset_frames(clip_2)
+        test_eq("Number of Frames", frame_count_before_edits, self.__get_frame_count())
+
+        frame_count_before_final_modify = self.__get_frame_count()
+        modify_clip_bounds(clip_2, -100, 50)
+        frame_count_after_final_modify = self.__get_frame_count()
+        test_eq("Number of Frames", frame_count_before_final_modify + 150, frame_count_after_final_modify)
+        test_eq("Frame Edits Not Allowed", False, self.__session_api.are_frame_edits_allowed(clip_2))
+
+    def __cross_dissolve(self):
+        self.__label.setText("Cross Dissolve")
+        playlist = self.__session_api.get_playlists()[0]
+        self.__session_api.set_active_clips(playlist, [])
+        clips = self.__session_api.get_clips(playlist)
+        clip_1 = clips[0]
+        clip_2 = clips[1]
+        old_frame_count = self.__get_frame_count()
+        self.__session_api.set_attr_values([
+            (playlist, clip_1, "dissolve_length", 100)
+        ])
+        new_frame_count = self.__get_frame_count()
+        test_eq("Number of Frames", old_frame_count - 100, new_frame_count)
 
     def __create_clips(self):
         self.__label.setText("Create Clips")

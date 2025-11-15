@@ -592,22 +592,10 @@ class SessionApiCore(QtCore.QObject):
         return True
 
     def __update_current_clip(self):
-        sources = commands.sourcesAtFrame(commands.frame())
-        print(f"__update_current_clip: sources: {sources}")
-        if len(sources) == 0:
-            clip_id = None
-            self.__session.viewport.current_clip = clip_id
-            self.SIG_CURRENT_CLIP_CHANGED.emit(clip_id)
-            return
-        pip = 4
-        if self.__session.viewport.bg_mode == pip and len(sources) == 2:
-            source = sources[1]
-        else:
-            source = sources[0]
-        source = source.removesuffix("_source")
-        clip_id = prop_util.get_property(f"{source}.custom.rpa_clip_id")
-        if not clip_id: return
-        clip_id = clip_id[0]
+        clip_frames =self.__session.timeline.get_clip_frames([commands.frame()])
+        if len(clip_frames) != 1: return
+        clip_id, _, _ = clip_frames[0]
+
         if self.__session.viewport.current_clip != clip_id:
             self.__session.viewport.current_clip = clip_id
             self.__set_custom_fps(clip_id)
@@ -896,7 +884,6 @@ class SessionApiCore(QtCore.QObject):
                 # First clip - always add
                 inputs.append(clip_output_node)
 
-        print("inputs", inputs)
         # Connect all clips to the playlist sequence node
         commands.setNodeInputs(playlist_node, inputs)
 
@@ -1142,7 +1129,6 @@ class SessionApiCore(QtCore.QObject):
         for attr_id in attr_ids_modified:
             value = clip.get_attr_value(attr_id)
             attr_values_modified.append((playlist_id, clip_id, attr_id, value))
-        print("attr_values_modified", attr_values_modified)
         self.SIG_ATTR_VALUES_CHANGED.emit(attr_values_modified)
 
     def edit_frames(self, clip_id, edit, local_frame, num_frames):

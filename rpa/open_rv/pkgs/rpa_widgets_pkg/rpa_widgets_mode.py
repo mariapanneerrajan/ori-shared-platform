@@ -294,12 +294,13 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         self.__test_delegate_manager_dock = None
 
         self.__show_session_manager()
-        self.__show_annotation()
+        # self.__show_annotation()
         self.__hide_rv_timeline()
         self.__show_timeline()
         # self.__show_color_corrector()
         self.__show_session_auto_saver(False)
-        self.__show_frame_editor(True)
+        # self.__show_frame_editor(True)
+        self.__show_test_session_api()
 
         commands.writeSettings("rpa", "is_rpa_mode", True)
 
@@ -411,7 +412,7 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         rpa_widgets_menu.addAction(action)
 
         rpa_interpretter_action = QAction("RPA Interpreter", parent=self.__main_window)
-        rpa_interpretter_action.triggered.connect(self.__show_rpa_interpreter)        
+        rpa_interpretter_action.triggered.connect(self.__show_rpa_interpreter)
 
         action = QAction("Show FStop Slider ", parent=self.__main_window)
         action.triggered.connect(self.__show_fstop_slider)
@@ -441,9 +442,9 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
         # action.triggered.connect(self.__show_playlists_creator)
         # rpa_widgets_menu.addAction(action)
 
-        # action = QAction("Test Session API", parent=self.__main_window)
-        # action.triggered.connect(self.__show_test_session_api)
-        # rpa_widgets_menu.addAction(action)
+        action = QAction("Test Session API", parent=self.__main_window)
+        action.triggered.connect(self.__show_test_session_api)
+        rpa_widgets_menu.addAction(action)
 
         # action = QAction("Test Timeline API", parent=self.__main_window)
         # action.triggered.connect(self.__show_test_timeline_api)
