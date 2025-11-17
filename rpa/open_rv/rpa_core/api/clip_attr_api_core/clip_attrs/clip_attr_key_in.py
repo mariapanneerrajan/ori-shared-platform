@@ -2,7 +2,7 @@ from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attr_api_core \
     import ClipAttrApiCore
 from rv import commands
 from rpa.open_rv.rpa_core.api.clip_attr_api_core.clip_attrs.utils \
-    import get_key_in, validate_cross_dissolve
+    import get_key_in, get_key_out, validate_cross_dissolve, has_frame_edits
 
 
 class ClipAttrKeyIn:
@@ -37,7 +37,14 @@ class ClipAttrKeyIn:
 
     def set_value(self, source_group:str, value:int)->bool:
 
-        # Make sure key_in is not greater than key_out
+        if has_frame_edits(source_group):
+            print("key_in change is not allowed when frame edits are present")
+            return False
+
+        key_out = get_key_out(source_group)
+        if value > key_out:
+            print("key_in change is not allowed when key_out is greater")
+            return False
 
         if not isinstance(value, int):
             value = self.default_value
@@ -46,7 +53,7 @@ class ClipAttrKeyIn:
             commands.newProperty(f"{source_group}_source.custom.keyin", commands.IntType, 1)
 
         commands.setIntProperty(f"{source_group}_source.custom.keyin", [value], True)
-        
+
         validate_cross_dissolve(source_group)
 
         return True

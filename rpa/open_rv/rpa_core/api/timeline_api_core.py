@@ -109,7 +109,7 @@ class TimelineApiCore(QtCore.QObject):
 
     def __attr_values_changed(self, attr_values):
         if any(attr_value[0] == self.__session.viewport.fg and \
-            attr_value[2] in ("key_in", "key_out") for attr_value in attr_values):
+            attr_value[2] in ("key_in", "key_out", "dissolve_start","dissolve_length") for attr_value in attr_values):
             self.__session.timeline.update()
             self.SIG_MODIFIED.emit()
 
