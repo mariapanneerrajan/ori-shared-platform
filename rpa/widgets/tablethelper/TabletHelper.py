@@ -11,7 +11,7 @@ import rpa.widgets.tablethelper.resources.resources
 # PySide import fallback: Try PySide2 first, then PySide6
 try:
     # PySide2 (Qt5): QAction, QPushButton, QSlider, QWidgetAction are in QtWidgets
-    from PySide2.QtCore import Qt, QSize, Signal, Slot
+    from PySide2.QtCore import Qt, QSize, QTimer, Signal, Slot
     from PySide2.QtGui import QColor, QIcon, QPalette
     from PySide2.QtWidgets import (
         QAction, QMenu, QPushButton, QSlider, QToolBar, QToolButton, QWidgetAction
@@ -20,7 +20,7 @@ try:
 except ImportError:
     try:
         # PySide6 (Qt6): QAction moved to QtGui, QPushButton, QSlider, QWidgetAction still in QtWidgets
-        from PySide6.QtCore import Qt, QSize, Signal, Slot
+        from PySide6.QtCore import Qt, QSize, QTimer, Signal, Slot
         from PySide6.QtGui import QAction, QColor, QIcon, QPalette
         from PySide6.QtWidgets import (
             QMenu, QPushButton, QSlider, QToolBar, QToolButton, QWidgetAction
@@ -37,6 +37,8 @@ except ImportError:
 # Default values for sliders
 DEFAULT_MAX_PEN_WIDTH = 100
 DEFAULT_MAX_ERASER_WIDTH = 100
+DEFAULT_PEN_WIDTH = 30
+DEFAULT_ERASER_WIDTH = 30
 DEFAULT_CONTRAST_MAX = 80
 DEFAULT_CONTRAST_MIN = 0
 
@@ -191,11 +193,17 @@ class TabletHelper(QToolBar):
         self._orient_horizontal = False
         self._default_color = None
         self._mode_actions = []
+        self._current_mode_action = None  # Track currently active mode action
 
         # Slider widgets
         self._pen_width_slider = None
         self._erase_width_slider = None
         self._contrast_slider = None
+
+        # Slider widget actions (needed to access widgets when menus are shown)
+        self._pen_width_swa = None
+        self._erase_width_swa = None
+        self._contrast_swa = None
 
         # Actions
         self.color_action = None
@@ -207,8 +215,8 @@ class TabletHelper(QToolBar):
         self.prev_clip_action = None
         self.next_anno_action = None
         self.prev_anno_action = None
-        self.dim_action = None
-        self.audio_wf_action = None
+        # self.dim_action = None
+        # self.audio_wf_action = None
         self.color_swatch_action = None
         self.photo_action = None
         self.frame_action = None
@@ -220,7 +228,7 @@ class TabletHelper(QToolBar):
         self.eraser_action = None
         self.color_pick_action = None
         self.orient_action = None
-        self.contrast_action = None
+        # self.contrast_action = None
         self.pen_size_action = None
         self.eraser_size_action = None
 
@@ -281,16 +289,16 @@ class TabletHelper(QToolBar):
         )
 
         # Display and tool actions
-        self.dim_action = QAction(
-            _load_icon("help-hint.png"),
-            "Dim Lights",
-            self
-        )
-        self.audio_wf_action = QAction(
-            _load_icon("applications-multimedia.png"),
-            "Audio Waveforms",
-            self
-        )
+        # self.dim_action = QAction(
+        #     _load_icon("help-hint.png"),
+        #     "Dim Lights",
+        #     self
+        # )
+        # self.audio_wf_action = QAction(
+        #     _load_icon("applications-multimedia.png"),
+        #     "Audio Waveforms",
+        #     self
+        # )
         self.color_swatch_action = QAction(
             _load_icon("fill-color.png"),
             "Color Swatch",
@@ -366,8 +374,8 @@ class TabletHelper(QToolBar):
         self.prev_clip_action.triggered.connect(self._on_prev_clip)
         self.next_anno_action.triggered.connect(self._on_next_annotation)
         self.prev_anno_action.triggered.connect(self._on_prev_annotation)
-        self.dim_action.triggered.connect(self._on_dim_lights)
-        self.audio_wf_action.triggered.connect(self._on_audio_waveform)
+        # self.dim_action.triggered.connect(self._on_dim_lights)
+        # self.audio_wf_action.triggered.connect(self._on_audio_waveform)
         self.color_swatch_action.triggered.connect(self._on_color_swatch)
         self.photo_action.triggered.connect(self._on_photo_plugin)
         self.frame_action.triggered.connect(self._on_frame_overlay)
@@ -387,8 +395,8 @@ class TabletHelper(QToolBar):
         """Initialize the toolbar with all actions."""
         # Add actions to toolbar in order
         self.addAction(self.orient_action)
-        self.addAction(self.dim_action)
-        self.addWidget(self.contrast_action)
+        # self.addAction(self.dim_action)
+        # self.addWidget(self.contrast_action)
         self.addAction(self.color_action)
         self.addAction(self.color_pick_action)
         self.addAction(self.pen_action)
@@ -405,7 +413,7 @@ class TabletHelper(QToolBar):
         self.addAction(self.mute_action)
         self.addAction(self.scrub_action)
         self.addAction(self.mask_action)
-        self.addAction(self.audio_wf_action)
+        # self.addAction(self.audio_wf_action)
         self.addAction(self.color_swatch_action)
         self.addAction(self.photo_action)
         self.addAction(self.frame_action)
@@ -417,11 +425,14 @@ class TabletHelper(QToolBar):
             Qt.Tool | Qt.WindowStaysOnTopHint |
             Qt.FramelessWindowHint | Qt.X11BypassWindowManagerHint
         )
+        # Ensure toolbar is movable - this enables the native drag handle
+        # For floating toolbars, Qt automatically shows a handle area at the start
+        self.setMovable(True)
 
         # Set auto-fill background for toggle buttons
         toggle_actions = [
             self.photo_action, self.scrub_action, self.mask_action,
-            self.audio_wf_action, self.text_action, self.color_action,
+            self.text_action, self.color_action,
             self.pen_action, self.eraser_action, self.frame_action
         ]
         for action in toggle_actions:
@@ -429,8 +440,14 @@ class TabletHelper(QToolBar):
             if widget:
                 widget.setAutoFillBackground(True)
 
-        # Set icon size - use a larger size for better visibility
-        self.setIconSize(QSize(24, 24))
+        # Match reference toolbar icon size for compact appearance
+        self.setIconSize(QSize(16, 16))
+
+        # Reduce toolbar spacing for more compact layout (match reference)
+        layout = self.layout()
+        if layout:
+            layout.setSpacing(0)
+            layout.setContentsMargins(0, 0, 0, 0)
 
         # Set tool button style to show icons only for all actions
         for action in self.actions():
@@ -438,6 +455,8 @@ class TabletHelper(QToolBar):
             if widget and isinstance(widget, QToolButton):
                 widget.setToolButtonStyle(Qt.ToolButtonIconOnly)
                 widget.setFocusPolicy(Qt.NoFocus)
+                # Reduce button padding for more compact appearance
+                widget.setStyleSheet("QToolButton { padding: 2px; }")
 
         # Get default background color
         frame_widget = self.widgetForAction(self.frame_action)
@@ -449,69 +468,139 @@ class TabletHelper(QToolBar):
                 palette.blue() / 255.0
             )
 
+        # Initialize orientation state to match actual toolbar orientation
+        self._orient_horizontal = (self.orientation() == Qt.Horizontal)
+        self._update_orientation_icon()
+
     def _create_pen_size_slider(self):
         """Create the pen size slider widget."""
         pen_size_menu = QMenu('')
-        pen_swa = SliderWidgetAction(
+        self._pen_width_swa = SliderWidgetAction(
             pen_size_menu,
             orientation=Qt.Vertical,
             minimum=1,
             maximum=DEFAULT_MAX_PEN_WIDTH,
             maximum_width=20
         )
-        pen_size_menu.addAction(pen_swa)
-        self._pen_width_slider = pen_swa.getCreatedWidget()
-        self._pen_width_slider.valueChanged.connect(self._on_pen_width_changed)
-        pen_size_menu.setMinimumWidth(self._pen_width_slider.width() + 6)
+        pen_size_menu.addAction(self._pen_width_swa)
 
-        self.pen_size_action = QPushButton('')
+        # Connect to menu's aboutToShow signal to get slider widget when it's created
+        def _on_pen_menu_about_to_show():
+            # Use QTimer to ensure widget is created after menu is shown
+            def _get_slider_widget():
+                if self._pen_width_slider is None:
+                    widgets = self._pen_width_swa.createdWidgets()
+                    if widgets:
+                        self._pen_width_slider = widgets[0]
+                        # Set default value to DEFAULT_PEN_WIDTH
+                        self._pen_width_slider.setValue(DEFAULT_PEN_WIDTH)
+                        self._pen_width_slider.valueChanged.connect(self._on_pen_width_changed)
+                        pen_size_menu.setMinimumWidth(self._pen_width_slider.width() + 6)
+                        # Update icon based on default slider value (without selecting tool)
+                        icon_index = self._calculate_icon_index(DEFAULT_PEN_WIDTH, DEFAULT_MAX_PEN_WIDTH)
+                        icon_path = f"brush_{icon_index}.png"
+                        self.pen_size_action.setIcon(_load_icon(icon_path))
+
+            QTimer.singleShot(0, _get_slider_widget)
+
+        pen_size_menu.aboutToShow.connect(_on_pen_menu_about_to_show)
+
+        # Calculate default icon index for width 30
+        default_icon_index = self._calculate_icon_index(DEFAULT_PEN_WIDTH, DEFAULT_MAX_PEN_WIDTH)
+        default_icon_path = f"brush_{default_icon_index}.png"
+
+        self.pen_size_action = QToolButton(self)
         self.pen_size_action.setToolTip("Pen Size")
         self.pen_size_action.setMenu(pen_size_menu)
+        self.pen_size_action.setPopupMode(QToolButton.InstantPopup)
+        self.pen_size_action.setIcon(_load_icon(default_icon_path))
+        self.pen_size_action.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.pen_size_action.setFocusPolicy(Qt.NoFocus)
 
     def _create_eraser_slider(self):
         """Create the eraser size slider widget."""
         eraser_size_menu = QMenu('')
-        eraser_swa = SliderWidgetAction(
+        self._erase_width_swa = SliderWidgetAction(
             eraser_size_menu,
             orientation=Qt.Vertical,
             minimum=1,
             maximum=DEFAULT_MAX_ERASER_WIDTH,
             maximum_width=20
         )
-        eraser_size_menu.addAction(eraser_swa)
-        self._erase_width_slider = eraser_swa.getCreatedWidget()
-        self._erase_width_slider.valueChanged.connect(
-            self._on_eraser_width_changed
-        )
-        eraser_size_menu.setMinimumWidth(
-            self._erase_width_slider.width() + 6
-        )
+        eraser_size_menu.addAction(self._erase_width_swa)
 
-        self.eraser_size_action = QPushButton('')
+        # Connect to menu's aboutToShow signal to get slider widget when it's created
+        def _on_eraser_menu_about_to_show():
+            # Use QTimer to ensure widget is created after menu is shown
+            def _get_slider_widget():
+                if self._erase_width_slider is None:
+                    widgets = self._erase_width_swa.createdWidgets()
+                    if widgets:
+                        self._erase_width_slider = widgets[0]
+                        # Set default value to DEFAULT_ERASER_WIDTH
+                        self._erase_width_slider.setValue(DEFAULT_ERASER_WIDTH)
+                        self._erase_width_slider.valueChanged.connect(
+                            self._on_eraser_width_changed
+                        )
+                        eraser_size_menu.setMinimumWidth(
+                            self._erase_width_slider.width() + 6
+                        )
+                        # Update icon based on default slider value (without selecting tool)
+                        icon_index = self._calculate_icon_index(DEFAULT_ERASER_WIDTH, DEFAULT_MAX_ERASER_WIDTH)
+                        icon_path = f"eraser_{icon_index}.png"
+                        self.eraser_size_action.setIcon(_load_icon(icon_path))
+
+            QTimer.singleShot(0, _get_slider_widget)
+
+        eraser_size_menu.aboutToShow.connect(_on_eraser_menu_about_to_show)
+
+        # Calculate default icon index for width 30
+        default_icon_index = self._calculate_icon_index(DEFAULT_ERASER_WIDTH, DEFAULT_MAX_ERASER_WIDTH)
+        default_icon_path = f"eraser_{default_icon_index}.png"
+
+        self.eraser_size_action = QToolButton(self)
         self.eraser_size_action.setToolTip("Eraser Size")
         self.eraser_size_action.setMenu(eraser_size_menu)
+        self.eraser_size_action.setPopupMode(QToolButton.InstantPopup)
+        self.eraser_size_action.setIcon(_load_icon(default_icon_path))
+        self.eraser_size_action.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.eraser_size_action.setFocusPolicy(Qt.NoFocus)
 
     def _create_contrast_slider(self):
         """Create the contrast slider widget."""
         contrast_menu = QMenu('')
-        swa = SliderWidgetAction(
+        self._contrast_swa = SliderWidgetAction(
             contrast_menu,
             orientation=Qt.Vertical,
             minimum=DEFAULT_CONTRAST_MIN,
             maximum=DEFAULT_CONTRAST_MAX,
             maximum_width=20
         )
-        contrast_menu.addAction(swa)
-        self._contrast_slider = swa.getCreatedWidget()
-        self._contrast_slider.valueChanged.connect(self._on_contrast_changed)
-        contrast_menu.setMinimumWidth(self._contrast_slider.width() + 6)
+        contrast_menu.addAction(self._contrast_swa)
 
-        self.contrast_action = QPushButton('')
-        self.contrast_action.setToolTip("Contrast")
-        self.contrast_action.setMenu(contrast_menu)
-        self.contrast_action.setIcon(
-            _load_icon("contrast.png")
-        )
+        # Connect to menu's aboutToShow signal to get slider widget when it's created
+        def _on_contrast_menu_about_to_show():
+            # Use QTimer to ensure widget is created after menu is shown
+            def _get_slider_widget():
+                if self._contrast_slider is None:
+                    widgets = self._contrast_swa.createdWidgets()
+                    if widgets:
+                        self._contrast_slider = widgets[0]
+                        self._contrast_slider.valueChanged.connect(self._on_contrast_changed)
+                        contrast_menu.setMinimumWidth(self._contrast_slider.width() + 6)
+
+            QTimer.singleShot(0, _get_slider_widget)
+
+        contrast_menu.aboutToShow.connect(_on_contrast_menu_about_to_show)
+
+        # self.contrast_action = QToolButton(self)
+        # self.contrast_action.setToolTip("Contrast (Not Available)")
+        # self.contrast_action.setMenu(contrast_menu)
+        # self.contrast_action.setPopupMode(QToolButton.InstantPopup)
+        # self.contrast_action.setIcon(_load_icon("contrast.png"))
+        # self.contrast_action.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        # self.contrast_action.setFocusPolicy(Qt.NoFocus)
+        # self.contrast_action.setEnabled(False)
 
     def set_visible(self, visible):
         """
@@ -559,6 +648,7 @@ class TabletHelper(QToolBar):
         Args:
             current_action: The currently active action, or None
         """
+        self._current_mode_action = current_action
         for action in self._mode_actions:
             widget = self.widgetForAction(action)
             if widget:
@@ -573,6 +663,23 @@ class TabletHelper(QToolBar):
                 palette = widget.palette()
                 palette.setColor(widget.backgroundRole(), qcolor)
                 widget.setPalette(palette)
+
+    def _calculate_icon_index(self, width, max_width):
+        """
+        Calculate icon index from width value.
+
+        Args:
+            width: Current width value
+            max_width: Maximum width value
+
+        Returns:
+            int: Icon index (0-9)
+        """
+        # Calculate index: (width-1)/(max_width/10)
+        # This maps width values to icon indices 0-9
+        index = int((width - 1) / (max_width / 10))
+        # Clamp to valid range
+        return max(0, min(9, index))
 
     # Placeholder slots for actions
 
@@ -631,19 +738,19 @@ class TabletHelper(QToolBar):
         print("[TabletHelper] DEBUG: Previous Annotation action triggered")
         self.prev_annotation.emit()
 
-    @Slot()
-    def _on_dim_lights(self):
-        """Placeholder slot for dim lights action."""
-        print("[TabletHelper] DEBUG: Dim Lights action triggered")
-        # Toggle state would be managed by external logic
-        self.lights_dimmed.emit(True)
+    # @Slot()
+    # def _on_dim_lights(self):
+    #     """Placeholder slot for dim lights action."""
+    #     print("[TabletHelper] DEBUG: Dim Lights action triggered")
+    #     # Toggle state would be managed by external logic
+    #     self.lights_dimmed.emit(True)
 
-    @Slot()
-    def _on_audio_waveform(self):
-        """Placeholder slot for audio waveform action."""
-        print("[TabletHelper] DEBUG: Audio Waveform action triggered")
-        # Toggle state would be managed by external logic
-        self.audio_waveform_toggled.emit(True)
+    # @Slot()
+    # def _on_audio_waveform(self):
+    #     """Placeholder slot for audio waveform action."""
+    #     print("[TabletHelper] DEBUG: Audio Waveform action triggered")
+    #     # Toggle state would be managed by external logic
+    #     self.audio_waveform_toggled.emit(True)
 
     @Slot()
     def _on_color_swatch(self):
@@ -695,17 +802,37 @@ class TabletHelper(QToolBar):
 
     @Slot()
     def _on_pen_select(self):
-        """Placeholder slot for pen tool selection."""
-        print("[TabletHelper] DEBUG: Pen Tool selected")
-        self._set_interactive_mode_visual(self.pen_action)
-        self.pen_tool_selected.emit(True)
+        """
+        Handle pen tool selection with toggle behavior.
+
+        If pen is already selected, deselects it. Otherwise, selects pen
+        and deselects eraser (mutual exclusivity).
+        """
+        # Toggle: if pen is already active, deselect it
+        if self._current_mode_action is self.pen_action:
+            self._set_interactive_mode_visual(None)
+            self.pen_tool_selected.emit(False)
+        else:
+            # Select pen and deselect eraser
+            self._set_interactive_mode_visual(self.pen_action)
+            self.pen_tool_selected.emit(True)
 
     @Slot()
     def _on_eraser_select(self):
-        """Placeholder slot for eraser tool selection."""
-        print("[TabletHelper] DEBUG: Eraser Tool selected")
-        self._set_interactive_mode_visual(self.eraser_action)
-        self.eraser_tool_selected.emit(True)
+        """
+        Handle eraser tool selection with toggle behavior.
+
+        If eraser is already selected, deselects it. Otherwise, selects eraser
+        and deselects pen (mutual exclusivity).
+        """
+        # Toggle: if eraser is already active, deselect it
+        if self._current_mode_action is self.eraser_action:
+            self._set_interactive_mode_visual(None)
+            self.eraser_tool_selected.emit(False)
+        else:
+            # Select eraser and deselect pen
+            self._set_interactive_mode_visual(self.eraser_action)
+            self.eraser_tool_selected.emit(True)
 
     @Slot()
     def _on_color_picker(self):
@@ -716,35 +843,68 @@ class TabletHelper(QToolBar):
     @Slot()
     def _on_orientation_change(self):
         """Placeholder slot for orientation change action."""
-        orientation_str = "Horizontal" if self._orient_horizontal else "Vertical"
+        # Get the actual current orientation from the toolbar
+        current_orientation = self.orientation()
+        # Toggle to the opposite orientation
+        new_orientation = Qt.Vertical if (current_orientation == Qt.Horizontal) else Qt.Horizontal
+        orientation_str = "Horizontal" if (new_orientation == Qt.Horizontal) else "Vertical"
         print(f"[TabletHelper] DEBUG: Orientation Change action triggered (switching to {orientation_str})")
-        if self._orient_horizontal:
-            self.set_orientation(Qt.Vertical)
-        else:
-            self.set_orientation(Qt.Horizontal)
+        self.set_orientation(new_orientation)
         self.orientation_changed.emit(self.orientation())
 
     @Slot(int)
     def _on_pen_width_changed(self, width):
         """
-        Placeholder slot for pen width change.
+        Handle pen width change and update icon dynamically.
+
+        When pen width changes, the icon updates to reflect the size,
+        and the pen tool is automatically selected.
 
         Args:
             width: New pen width value
         """
-        print(f"[TabletHelper] DEBUG: Pen Width changed to {width}")
+        # Update slider value if it exists (avoid recursion)
+        if self._pen_width_slider and self._pen_width_slider.value() != width:
+            self._pen_width_slider.setValue(width)
+
+        # Calculate icon index and update icon
+        icon_index = self._calculate_icon_index(width, DEFAULT_MAX_PEN_WIDTH)
+        icon_path = f"brush_{icon_index}.png"
+        self.pen_size_action.setIcon(_load_icon(icon_path))
+
+        # Automatically select pen tool when size changes
+        self._set_interactive_mode_visual(self.pen_action)
+
+        print(f"[TabletHelper] DEBUG: Pen Width changed to {width}, icon: {icon_path}")
         self.pen_width_changed.emit(width)
+        self.pen_tool_selected.emit(True)
 
     @Slot(int)
     def _on_eraser_width_changed(self, width):
         """
-        Placeholder slot for eraser width change.
+        Handle eraser width change and update icon dynamically.
+
+        When eraser width changes, the icon updates to reflect the size,
+        and the eraser tool is automatically selected.
 
         Args:
             width: New eraser width value
         """
-        print(f"[TabletHelper] DEBUG: Eraser Width changed to {width}")
+        # Update slider value if it exists (avoid recursion)
+        if self._erase_width_slider and self._erase_width_slider.value() != width:
+            self._erase_width_slider.setValue(width)
+
+        # Calculate icon index and update icon
+        icon_index = self._calculate_icon_index(width, DEFAULT_MAX_ERASER_WIDTH)
+        icon_path = f"eraser_{icon_index}.png"
+        self.eraser_size_action.setIcon(_load_icon(icon_path))
+
+        # Automatically select eraser tool when size changes
+        self._set_interactive_mode_visual(self.eraser_action)
+
+        print(f"[TabletHelper] DEBUG: Eraser Width changed to {width}, icon: {icon_path}")
         self.eraser_width_changed.emit(width)
+        self.eraser_tool_selected.emit(True)
 
     @Slot(int)
     def _on_contrast_changed(self, value):

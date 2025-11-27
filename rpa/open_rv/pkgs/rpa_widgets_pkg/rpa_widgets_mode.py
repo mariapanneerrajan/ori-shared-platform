@@ -578,7 +578,7 @@ class RpaWidgetsMode(QtCore.QObject, rvtypes.MinorMode):
                 self.__tablet_helper_toolbar.set_visible(True)
             return
         self.__tablet_helper_toolbar = TabletHelper(self.__rpa, self.__main_window)
-        self.__main_window.addToolBar(QtCore.Qt.LeftToolBarArea, self.__tablet_helper_toolbar)
+        # self.__main_window.addToolBar(QtCore.Qt.LeftToolBarArea, self.__tablet_helper_toolbar)
         self.__tablet_helper_toolbar.set_visible(True)
 
     def _show_annotation(self, event):

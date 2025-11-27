@@ -25,5 +25,25 @@
         <file alias="orient-horizontal.png">./icons/orient-horizontal.png</file>
         <file alias="orient-vertical.png">./icons/orient-vertical.png</file>
         <file alias="contrast.png">./icons/contrast.png</file>
+        <file alias="brush_0.png">./icons/brush_0.png</file>
+        <file alias="brush_1.png">./icons/brush_1.png</file>
+        <file alias="brush_2.png">./icons/brush_2.png</file>
+        <file alias="brush_3.png">./icons/brush_3.png</file>
+        <file alias="brush_4.png">./icons/brush_4.png</file>
+        <file alias="brush_5.png">./icons/brush_5.png</file>
+        <file alias="brush_6.png">./icons/brush_6.png</file>
+        <file alias="brush_7.png">./icons/brush_7.png</file>
+        <file alias="brush_8.png">./icons/brush_8.png</file>
+        <file alias="brush_9.png">./icons/brush_9.png</file>
+        <file alias="eraser_0.png">./icons/eraser_0.png</file>
+        <file alias="eraser_1.png">./icons/eraser_1.png</file>
+        <file alias="eraser_2.png">./icons/eraser_2.png</file>
+        <file alias="eraser_3.png">./icons/eraser_3.png</file>
+        <file alias="eraser_4.png">./icons/eraser_4.png</file>
+        <file alias="eraser_5.png">./icons/eraser_5.png</file>
+        <file alias="eraser_6.png">./icons/eraser_6.png</file>
+        <file alias="eraser_7.png">./icons/eraser_7.png</file>
+        <file alias="eraser_8.png">./icons/eraser_8.png</file>
+        <file alias="eraser_9.png">./icons/eraser_9.png</file>
     </qresource>
 </RCC>
